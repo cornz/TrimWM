@@ -389,7 +389,14 @@ final class WMController {
                 }
             }
         case .fullscreen:
-            if let window = world.visible.focused {
+            if let window = liveCommandWindow(),
+               world.workspace(of: window) == world.visibleWorkspace {
+                world.focusIfVisible(
+                    window,
+                    bounds: bounds,
+                    gaps: config.gaps,
+                    minimumSizes: minimumSizes
+                )
                 world.setFullscreen(window, enabled: world.visible.fullscreen != window)
                 applyLayout()
             }

@@ -216,9 +216,11 @@ struct WorkspaceState: Equatable, Sendable {
         gaps: LayoutGaps,
         minimumSizes: [WindowToken: CGSize] = [:]
     ) -> [WindowToken: CGRect] {
+        if let fullscreen, windows.contains(fullscreen) {
+            return [fullscreen: bounds]
+        }
         var result = layout.frames(bounds: bounds, gaps: gaps, minimumSizes: minimumSizes)
         result.merge(floating) { _, floating in floating }
-        if let fullscreen { result[fullscreen] = bounds }
         return result
     }
 }

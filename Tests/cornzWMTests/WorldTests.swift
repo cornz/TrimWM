@@ -90,14 +90,14 @@ final class WorldTests: XCTestCase {
         XCTAssertEqual(workspace.layout.windows, [token(1), token(2)])
     }
 
-    func testFullscreenOnlyOverridesFocusedWindowFrame() {
+    func testFullscreenExclusivelyShowsFocusedWindowInNiri() {
         var workspace = WorkspaceState()
         workspace.add(token(1), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
         workspace.add(token(2), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.changeLayout(to: .niri, bounds: bounds, gaps: gaps, splitRatio: 1)
         let tiled = workspace.frames(bounds: bounds, gaps: gaps)
         workspace.fullscreen = token(1)
-        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps)[token(1)], bounds)
-        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps)[token(2)], tiled[token(2)])
+        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), [token(1): bounds])
         workspace.fullscreen = nil
         XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), tiled)
     }
