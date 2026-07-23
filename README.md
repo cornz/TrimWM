@@ -40,8 +40,9 @@ open /Applications/cornzWM.app
 
 Grant `/Applications/cornzWM.app` access under **System Settings → Privacy &
 Security → Accessibility**. The menu-bar item changes from `Paused` to a status
-such as `1N 2A 5A` when enabled. Every occupied workspace is listed; `A`, `N`,
-and `F` mean Autotile, Niri, and WM-fullscreen.
+such as `[1N] 2A 5A` when enabled. Every occupied workspace is listed, and
+brackets mark the active one; `A`, `N`, and `F` mean Autotile, Niri, and
+WM-fullscreen.
 
 The distributed Release app is signed with a Developer ID Application
 certificate and hardened runtime. Replacing `/Applications/cornzWM.app` with

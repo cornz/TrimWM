@@ -241,7 +241,8 @@ struct World: Equatable, Sendable {
             guard number == visibleWorkspace || !workspace.windows.isEmpty else { return nil }
             let layout = workspace.layout.mode == .autotile ? "A" : "N"
             let fullscreen = workspace.fullscreen == nil ? "" : "F"
-            return "\(number)\(layout)\(fullscreen)"
+            let label = "\(number)\(layout)\(fullscreen)"
+            return number == visibleWorkspace ? "[\(label)]" : label
         }.joined(separator: " ")
     }
 
