@@ -71,6 +71,8 @@ Default highlights:
 - `Option+H/V`: force the next BSP split
 - `Option+W`: switch the current workspace to Niri
 - `Option+Shift+E`: switch back to BSP autotiling
+- `Option+,/.`: consume into the existing column on the left/right
+- `Option+Shift+,/.`: expel into a new column on the left/right
 - `Option+Shift+Space`: toggle floating
 - `Option+F`: toggle WM-fullscreen
 - `Option+R`: resize mode; Return or Escape exits it

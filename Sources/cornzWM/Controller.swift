@@ -306,11 +306,7 @@ final class WMController {
         case let .resize(direction, pixels): world.resizeFocused(direction, pixels: pixels, bounds: bounds); applyLayout()
         case let .workspace(index): world.switchWorkspace(to: index); applyLayout()
         case let .moveToWorkspace(index, follow):
-            let window = CommandTargetResolver.resolve(
-                frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
-                nativelyFocused: native.values.filter(\.isFocused).map(\.token),
-                world: world
-            )
+            let window = commandWindow()
             if let window, let frame = native[window]?.frame {
                 world.move(
                     window,
@@ -336,9 +332,11 @@ final class WMController {
         case let .split(axis): world.setNextSplit(axis)
         case .balance: world.balanceVisible(); applyLayout()
         case let .consume(direction):
+            synchronizeVisibleCommandFocus()
             world.consume(direction, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
             applyLayout()
         case let .expel(direction):
+            synchronizeVisibleCommandFocus()
             world.expel(direction, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
             applyLayout()
         case .centerColumn:
@@ -384,6 +382,24 @@ final class WMController {
     private func focusCurrent() {
         if let window = world.visible.focused { windowSystem.focus(window) }
         applyLayout()
+    }
+
+    private func commandWindow() -> WindowToken? {
+        CommandTargetResolver.resolve(
+            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+            nativelyFocused: native.values.filter(\.isFocused).map(\.token),
+            world: world
+        )
+    }
+
+    private func synchronizeVisibleCommandFocus() {
+        guard let window = commandWindow(), world.workspace(of: window) == world.visibleWorkspace else { return }
+        world.focusIfVisible(
+            window,
+            bounds: WindowSystem.mainScreenBounds,
+            gaps: config.gaps,
+            minimumSizes: minimumSizes
+        )
     }
 
     private func write(_ frame: CGRect, to window: WindowToken) {

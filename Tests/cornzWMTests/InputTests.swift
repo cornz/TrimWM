@@ -16,6 +16,25 @@ final class InputTests: XCTestCase {
         XCTAssertEqual(plan.modifiers, UInt32(controlKey))
     }
 
+    func testPlansConsumeAndExpelPunctuationHotkeys() throws {
+        let bindings = [
+            Binding(chord: "alt+comma", command: .consume(.left)),
+            Binding(chord: "alt+period", command: .consume(.right)),
+            Binding(chord: "alt+Shift+comma", command: .expel(.left)),
+            Binding(chord: "alt+Shift+period", command: .expel(.right)),
+        ]
+        let plans = try bindings.map(HotKeyPlanner.plan)
+        XCTAssertEqual(plans.map(\.keyCode), [
+            UInt32(kVK_ANSI_Comma), UInt32(kVK_ANSI_Period),
+            UInt32(kVK_ANSI_Comma), UInt32(kVK_ANSI_Period),
+        ])
+        XCTAssertEqual(plans.map(\.modifiers), [
+            UInt32(optionKey), UInt32(optionKey),
+            UInt32(optionKey | shiftKey), UInt32(optionKey | shiftKey),
+        ])
+        XCTAssertEqual(plans.map(\.command), bindings.map(\.command))
+    }
+
     func testRejectsUnsupportedModifierAndKey() {
         XCTAssertThrowsError(try HotKeyPlanner.plan(Binding(chord: "hyper+j", command: .nop)))
         XCTAssertThrowsError(try HotKeyPlanner.plan(Binding(chord: "alt+f24", command: .nop)))
