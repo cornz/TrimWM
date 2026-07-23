@@ -117,5 +117,10 @@ final class InputTests: XCTestCase {
             target: frames[target]!,
             pointer: CGPoint(x: 750, y: 100)
         ))
+        XCTAssertTrue(MouseColumnDragPlanner.crossedMidpoint(
+            source: CGRect(x: 0, y: 0, width: 500, height: 300),
+            target: CGRect(x: 0, y: 300, width: 500, height: 300),
+            pointer: CGPoint(x: 100, y: 450)
+        ))
     }
 }

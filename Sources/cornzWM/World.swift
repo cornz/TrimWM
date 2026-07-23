@@ -406,7 +406,7 @@ struct World: Equatable, Sendable {
         workspaces[visibleWorkspace - 1] = workspace
     }
 
-    mutating func moveNiriColumn(
+    mutating func moveTiledItem(
         containing window: WindowToken,
         to target: WindowToken,
         bounds: CGRect,
@@ -415,14 +415,19 @@ struct World: Equatable, Sendable {
     ) {
         var workspace = workspaces[visibleWorkspace - 1]
         guard workspace.windows.contains(window),
-              workspace.windows.contains(target),
-              case var .niri(layout) = workspace.layout
+              workspace.windows.contains(target)
         else { return }
         workspace.focused = window
-        layout.focus(window)
-        layout.swapColumn(containing: window, with: target)
-        layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
-        workspace.layout = .niri(layout)
+        switch workspace.layout {
+        case var .autotile(layout):
+            layout.swap(window, with: target)
+            workspace.layout = .autotile(layout)
+        case var .niri(layout):
+            layout.focus(window)
+            layout.swapColumn(containing: window, with: target)
+            layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
+            workspace.layout = .niri(layout)
+        }
         workspaces[visibleWorkspace - 1] = workspace
     }
 

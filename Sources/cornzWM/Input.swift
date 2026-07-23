@@ -203,9 +203,11 @@ enum MouseResizePlanner {
 
 enum MouseColumnDragPlanner {
     static func crossedMidpoint(source: CGRect, target: CGRect, pointer: CGPoint) -> Bool {
-        if target.midX > source.midX { return pointer.x >= target.midX }
-        if target.midX < source.midX { return pointer.x <= target.midX }
-        return false
+        let horizontal = abs(target.midX - source.midX) >= abs(target.midY - source.midY)
+        if horizontal {
+            return target.midX > source.midX ? pointer.x >= target.midX : pointer.x <= target.midX
+        }
+        return target.midY > source.midY ? pointer.y >= target.midY : pointer.y <= target.midY
     }
 }
 

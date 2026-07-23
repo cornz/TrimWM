@@ -499,7 +499,7 @@ final class WMController {
               world.workspace(of: window) == world.visibleWorkspace,
               world.workspace(of: target) == world.visibleWorkspace
         else { return }
-        world.moveNiriColumn(
+        world.moveTiledItem(
             containing: window,
             to: target,
             bounds: WindowSystem.mainScreenBounds,
@@ -510,10 +510,7 @@ final class WMController {
     }
 
     private var columnDraggableWindows: Set<WindowToken> {
-        guard world.visible.fullscreen == nil,
-              case let .niri(layout) = world.visible.layout
-        else { return [] }
-        return Set(layout.windows)
+        world.visible.fullscreen == nil ? Set(world.visible.layout.windows) : []
     }
 
     private func restoreJournal() {

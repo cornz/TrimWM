@@ -79,7 +79,7 @@ Default highlights:
 - `Option+F`: toggle WM-fullscreen
 - `Option+R`: resize mode; Return or Escape exits it
 - `Option+right-drag`: resize the window under the pointer
-- `Option+left-drag`: move a whole Niri column across neighbouring columns
+- `Option+left-drag`: move a whole Niri column, or swap two BSP window slots
 - `Option+Shift+C`: reload configuration
 
 Consume requires an adjacent column in the chosen direction. Expel requires at

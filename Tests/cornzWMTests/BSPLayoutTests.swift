@@ -77,6 +77,23 @@ final class BSPLayoutTests: XCTestCase {
         XCTAssertEqual(layout.frames(in: wide, gaps: gaps)[token(2)]?.minX, 0)
     }
 
+    func testMouseSwapExchangesWindowSlotsWithoutChangingTree() {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1.1)
+        layout.nextSplit = .vertical
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1.1)
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1.1)
+        let before = layout.frames(in: wide, gaps: gaps)
+
+        layout.swap(token(1), with: token(3))
+
+        let after = layout.frames(in: wide, gaps: gaps)
+        XCTAssertEqual(after[token(1)], before[token(3)])
+        XCTAssertEqual(after[token(3)], before[token(1)])
+        XCTAssertEqual(after[token(2)], before[token(2)])
+        XCTAssertEqual(layout.focused, token(1))
+    }
+
     func testInnerAndOuterGapsAreAppliedOnce() {
         var layout = BSPLayout()
         layout.insert(token(1), in: wide, gaps: .init(inner: 10, outer: 20), splitRatio: 1.1)

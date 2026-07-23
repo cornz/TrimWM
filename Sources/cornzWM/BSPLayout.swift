@@ -249,6 +249,12 @@ struct BSPLayout: Equatable, Sendable {
         root = root?.swapping(focused, target)
     }
 
+    mutating func swap(_ window: WindowToken, with target: WindowToken) {
+        guard window != target, windows.contains(window), windows.contains(target) else { return }
+        root = root?.swapping(window, target)
+        focused = window
+    }
+
     mutating func resize(axis: SplitAxis, delta: CGFloat) {
         guard let focused, let root else { return }
         self.root = root.resizing(window: focused, axis: axis, delta: delta).node
