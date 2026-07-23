@@ -437,7 +437,7 @@ final class WMController {
     }
 
     private func synchronizeVisibleCommandFocus() {
-        guard let window = commandWindow(), world.workspace(of: window) == world.visibleWorkspace else { return }
+        guard let window = liveCommandWindow(), world.workspace(of: window) == world.visibleWorkspace else { return }
         world.focusIfVisible(
             window,
             bounds: WindowSystem.mainScreenBounds,

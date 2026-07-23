@@ -79,6 +79,10 @@ Default highlights:
 - `Option+right-drag`: resize the window under the pointer
 - `Option+Shift+C`: reload configuration
 
+Consume requires an adjacent column in the chosen direction. Expel requires at
+least two windows in the focused column; it then creates a new column in the
+chosen direction.
+
 `focus-follows-mouse true` activates the concrete managed window immediately
 when the pointer crosses its boundary. It has no delay and never moves the
 pointer. Activating an app through Command-Tab follows its focused window to
