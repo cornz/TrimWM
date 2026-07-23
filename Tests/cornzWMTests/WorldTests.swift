@@ -25,6 +25,31 @@ final class WorldTests: XCTestCase {
         XCTAssertEqual(world.visibleWorkspace, 4)
     }
 
+    func testMoveCommandPrefersNativeFocusFromFrontmostAppAcrossWorkspaces() {
+        var world = World(workspaceCount: 3)
+        let visible = WindowToken(pid: 7, id: 1)
+        let activeHidden = WindowToken(pid: 8, id: 2)
+        world.add(visible, to: 1, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.add(activeHidden, to: 2, bounds: bounds, gaps: gaps, splitRatio: 1)
+
+        XCTAssertEqual(
+            CommandTargetResolver.resolve(
+                frontmostPID: 8,
+                nativelyFocused: [visible, activeHidden],
+                world: world
+            ),
+            activeHidden
+        )
+        XCTAssertEqual(
+            CommandTargetResolver.resolve(
+                frontmostPID: 9,
+                nativelyFocused: [activeHidden],
+                world: world
+            ),
+            visible
+        )
+    }
+
     func testFloatingTogglePreservesFrameAndReturnsToLayout() {
         var workspace = WorkspaceState()
         workspace.add(token(1), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)

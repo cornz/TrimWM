@@ -15,6 +15,22 @@ enum LoginItemPlanner {
     }
 }
 
+enum CommandTargetResolver {
+    static func resolve(
+        frontmostPID: pid_t?,
+        nativelyFocused: [WindowToken],
+        world: World
+    ) -> WindowToken? {
+        if let frontmostPID,
+           let native = nativelyFocused.sorted().first(where: {
+               $0.pid == frontmostPID && world.workspace(of: $0) != nil
+           }) {
+            return native
+        }
+        return world.visible.focused
+    }
+}
+
 @MainActor
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
@@ -284,7 +300,12 @@ final class WMController {
         case let .resize(direction, pixels): world.resizeFocused(direction, pixels: pixels, bounds: bounds); applyLayout()
         case let .workspace(index): world.switchWorkspace(to: index); applyLayout()
         case let .moveToWorkspace(index, follow):
-            if let window = world.visible.focused, let frame = native[window]?.frame {
+            let window = CommandTargetResolver.resolve(
+                frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+                nativelyFocused: native.values.filter(\.isFocused).map(\.token),
+                world: world
+            )
+            if let window, let frame = native[window]?.frame {
                 world.move(
                     window,
                     to: index,
