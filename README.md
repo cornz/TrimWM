@@ -40,8 +40,8 @@ open /Applications/cornzWM.app
 
 Grant `/Applications/cornzWM.app` access under **System Settings → Privacy &
 Security → Accessibility**. The menu-bar item changes from `Paused` to a status
-such as `1 A` when enabled. `A`, `N`, and `F` mean Autotile, Niri, and
-WM-fullscreen.
+such as `1N 2A 5A` when enabled. Every occupied workspace is listed; `A`, `N`,
+and `F` mean Autotile, Niri, and WM-fullscreen.
 
 The Release target is signed with the configured Apple Development team.
 Replacing `/Applications/cornzWM.app` with another build signed by the same

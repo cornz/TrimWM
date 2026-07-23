@@ -233,6 +233,16 @@ struct World: Equatable, Sendable {
 
     var visible: WorkspaceState { workspaces[visibleWorkspace - 1] }
 
+    var statusText: String {
+        workspaces.enumerated().compactMap { index, workspace in
+            let number = index + 1
+            guard number == visibleWorkspace || !workspace.windows.isEmpty else { return nil }
+            let layout = workspace.layout.mode == .autotile ? "A" : "N"
+            let fullscreen = workspace.fullscreen == nil ? "" : "F"
+            return "\(number)\(layout)\(fullscreen)"
+        }.joined(separator: " ")
+    }
+
     func workspace(of window: WindowToken) -> Int? {
         workspaces.firstIndex { $0.windows.contains(window) }.map { $0 + 1 }
     }

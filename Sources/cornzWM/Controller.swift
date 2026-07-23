@@ -444,9 +444,7 @@ final class WMController {
 
     private func publish(error: String? = nil) {
         if let error { lastError = error }
-        let layout = world.visible.layout.mode == .autotile ? "A" : "N"
-        let fullscreen = world.visible.fullscreen == nil ? "" : " F"
-        let next = (isEnabled ? "\(world.visibleWorkspace) \(layout)\(fullscreen)" : "Paused", lastError)
+        let next = (isEnabled ? world.statusText : "Paused", lastError)
         guard published?.status != next.0 || published?.error != next.1 else { return }
         published = next
         if let error = next.1 { logger.error("\(next.0, privacy: .public): \(error, privacy: .public)") }
