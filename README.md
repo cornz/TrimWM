@@ -43,12 +43,13 @@ Security → Accessibility**. The menu-bar item changes from `Paused` to a statu
 such as `1N 2A 5A` when enabled. Every occupied workspace is listed; `A`, `N`,
 and `F` mean Autotile, Niri, and WM-fullscreen.
 
-The Release target is signed with the configured Apple Development team.
-Replacing `/Applications/cornzWM.app` with another build signed by the same
-certificate preserves its Accessibility identity. Grant access only to that
-installed app. Xcode, `xctest`, Terminal, and copies below `.build` do not need
-Accessibility access and their prompts can be declined. A different signing
-certificate is a different identity and requires one fresh grant.
+The distributed Release app is signed with a Developer ID Application
+certificate and hardened runtime. Replacing `/Applications/cornzWM.app` with
+another build signed by the same certificate preserves its Accessibility
+identity. Grant access only to that installed app. Xcode, `xctest`, Terminal,
+and copies below `.build` do not need Accessibility access and their prompts
+can be declined. A different signing certificate is a different identity and
+requires one fresh grant.
 
 ## Configuration
 
