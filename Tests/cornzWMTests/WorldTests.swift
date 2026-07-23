@@ -42,16 +42,19 @@ final class WorldTests: XCTestCase {
         var world = World(workspaceCount: 3)
         let visible = WindowToken(pid: 7, id: 1)
         let activeHidden = WindowToken(pid: 8, id: 2)
+        let live = WindowToken(pid: 8, id: 3)
         world.add(visible, to: 1, bounds: bounds, gaps: gaps, splitRatio: 1)
         world.add(activeHidden, to: 2, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.add(live, to: 2, bounds: bounds, gaps: gaps, splitRatio: 1)
 
         XCTAssertEqual(
             CommandTargetResolver.resolve(
+                liveFocused: live,
                 frontmostPID: 8,
                 nativelyFocused: [visible, activeHidden],
                 world: world
             ),
-            activeHidden
+            live
         )
         XCTAssertEqual(
             CommandTargetResolver.resolve(

@@ -17,10 +17,14 @@ enum LoginItemPlanner {
 
 enum CommandTargetResolver {
     static func resolve(
+        liveFocused: WindowToken? = nil,
         frontmostPID: pid_t?,
         nativelyFocused: [WindowToken],
         world: World
     ) -> WindowToken? {
+        if let liveFocused, world.workspace(of: liveFocused) != nil {
+            return liveFocused
+        }
         if let frontmostPID,
            let native = nativelyFocused.sorted().first(where: {
                $0.pid == frontmostPID && world.workspace(of: $0) != nil
@@ -330,7 +334,7 @@ final class WMController {
         case let .resize(direction, pixels): world.resizeFocused(direction, pixels: pixels, bounds: bounds); applyLayout()
         case let .workspace(index): world.switchWorkspace(to: index); applyLayout()
         case let .moveToWorkspace(index, follow):
-            let window = commandWindow()
+            let window = liveCommandWindow()
             if let window, let frame = native[window]?.frame {
                 world.move(
                     window,
@@ -410,6 +414,15 @@ final class WMController {
 
     private func commandWindow() -> WindowToken? {
         CommandTargetResolver.resolve(
+            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+            nativelyFocused: native.values.filter(\.isFocused).map(\.token),
+            world: world
+        )
+    }
+
+    private func liveCommandWindow() -> WindowToken? {
+        CommandTargetResolver.resolve(
+            liveFocused: windowSystem.frontmostFocusedWindow(),
             frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
             nativelyFocused: native.values.filter(\.isFocused).map(\.token),
             world: world

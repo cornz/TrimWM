@@ -388,6 +388,17 @@ private final class AXContext: @unchecked Sendable {
         }
     }
 
+    func focusedWindow() -> WindowToken? {
+        queue.sync {
+            guard stateLock.withLock({ !stopped }),
+                  let value = copy(application, kAXFocusedWindowAttribute as String),
+                  CFGetTypeID(value) == AXUIElementGetTypeID(),
+                  let id = resolver.id(for: unsafeDowncast(value, to: AXUIElement.self))
+            else { return nil }
+            return WindowToken(pid: pid, id: id)
+        }
+    }
+
     func refreshFrame(_ element: AXUIElement) {
         let box = AXElementBox(element)
         queue.async { [self] in
@@ -644,6 +655,14 @@ final class WindowSystem: NSObject {
     }
 
     func rescan() { contexts.values.forEach { $0.scan() } }
+
+    func frontmostFocusedWindow() -> WindowToken? {
+        guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              let token = contexts[pid]?.focusedWindow(),
+              windows[token] != nil
+        else { return nil }
+        return token
+    }
 
     func setFrame(
         _ frame: CGRect,
