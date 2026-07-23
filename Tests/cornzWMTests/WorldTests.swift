@@ -216,6 +216,19 @@ final class WorldTests: XCTestCase {
         XCTAssertEqual(world.visible.focused, token(1))
     }
 
+    func testNativeApplicationFocusSwitchesToWindowsWorkspace() {
+        var world = World(workspaceCount: 3)
+        world.add(token(1), to: 1, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.add(token(2), to: 3, bounds: bounds, gaps: gaps, splitRatio: 1)
+        XCTAssertEqual(world.visibleWorkspace, 1)
+
+        world.focus(token(2), bounds: bounds, gaps: gaps)
+
+        XCTAssertEqual(world.visibleWorkspace, 3)
+        XCTAssertEqual(world.visible.focused, token(2))
+        XCTAssertEqual(Set(world.visibleFrames(bounds: bounds, gaps: gaps).keys), [token(2)])
+    }
+
     func testTiledCommandsCoverBothLayoutsAndRemoval() {
         var world = World(workspaceCount: 1)
         for id in 1...3 { world.add(token(CGWindowID(id)), to: 1, bounds: bounds, gaps: gaps, splitRatio: 1) }

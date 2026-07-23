@@ -235,10 +235,16 @@ final class WMController {
                           minimumSizes: minimumSizes)
             }
             ledger.observed(window.frame, for: window.token)
-            if window.isFocused,
-               NSWorkspace.shared.frontmostApplication?.processIdentifier == pid {
-                world.focusIfVisible(window.token, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
-            }
+        }
+        if NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
+           let focused = windows.first(where: \.isFocused),
+           world.workspace(of: focused.token) != nil {
+            world.focus(
+                focused.token,
+                bounds: bounds,
+                gaps: config.gaps,
+                minimumSizes: minimumSizes
+            )
         }
         let desired = world.visibleFrames(bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
         for window in windows where journal.entries[window.token] != nil {

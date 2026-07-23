@@ -81,7 +81,8 @@ Default highlights:
 
 `focus-follows-mouse true` activates the concrete managed window immediately
 when the pointer crosses its boundary. It has no delay and never moves the
-pointer.
+pointer. Activating an app through Command-Tab follows its focused window to
+the corresponding cornzWM workspace.
 
 ## Recovery and removal
 
