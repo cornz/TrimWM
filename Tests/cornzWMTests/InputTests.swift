@@ -51,4 +51,27 @@ final class InputTests: XCTestCase {
         XCTAssertNil(state.moved(to: CGPoint(x: 150, y: 50)))
         XCTAssertEqual(state.moved(to: CGPoint(x: 50, y: 50)), managed)
     }
+
+    func testMouseResizeUsesDominantDragAxisAndSignedPixels() {
+        XCTAssertEqual(
+            MouseResizePlanner.step(for: CGPoint(x: 40, y: 10)),
+            MouseResizeStep(direction: .right, pixels: 40)
+        )
+        XCTAssertEqual(
+            MouseResizePlanner.step(for: CGPoint(x: -5, y: -30)),
+            MouseResizeStep(direction: .up, pixels: -30)
+        )
+        XCTAssertNil(MouseResizePlanner.step(for: CGPoint(x: 0.2, y: -0.2)))
+    }
+
+    func testMouseResizeTargetHonoursFrontmostSurface() {
+        let managed = WindowToken(pid: 1, id: 1)
+        var state = MouseTargetState()
+        state.update([managed: CGRect(x: 0, y: 0, width: 200, height: 200)], frontToBack: [
+            MouseSurface(token: nil, frame: CGRect(x: 100, y: 0, width: 100, height: 200)),
+            MouseSurface(token: managed, frame: CGRect(x: 0, y: 0, width: 200, height: 200)),
+        ])
+        XCTAssertEqual(state.target(at: CGPoint(x: 50, y: 50)), managed)
+        XCTAssertNil(state.target(at: CGPoint(x: 150, y: 50)))
+    }
 }

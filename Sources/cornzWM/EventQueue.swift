@@ -6,6 +6,7 @@ enum WMEvent: Sendable {
     case frameObserved(WindowToken, CGRect)
     case command(WMCommand)
     case mouse(WindowToken)
+    case mouseResize(WindowToken, Direction, CGFloat)
     case frameWriteResult(WindowToken, CGRect, AXFrameWriteResult)
 }
 
@@ -22,6 +23,15 @@ struct EventBuffer {
             if let index = events.lastIndex(where: { if case .mouse = $0 { true } else { false } }) {
                 events[index] = event
             } else { events.append(event) }
+        case let .mouseResize(window, direction, pixels):
+            if let last = events.indices.last,
+               case let .mouseResize(existingWindow, existingDirection, existingPixels) = events[last],
+               existingWindow == window,
+               existingDirection == direction {
+                events[last] = .mouseResize(window, direction, existingPixels + pixels)
+            } else {
+                events.append(event)
+            }
         case let .frameObserved(window, _):
             if let index = events.lastIndex(where: {
                 if case let .frameObserved(existing, _) = $0 { existing == window } else { false }

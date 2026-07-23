@@ -74,6 +74,7 @@ Default highlights:
 - `Option+Shift+Space`: toggle floating
 - `Option+F`: toggle WM-fullscreen
 - `Option+R`: resize mode; Return or Escape exits it
+- `Option+right-drag`: resize the window under the pointer
 - `Option+Shift+C`: reload configuration
 
 `focus-follows-mouse true` activates the concrete managed window immediately

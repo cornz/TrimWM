@@ -125,13 +125,17 @@ final class HotKeyManager: @unchecked Sendable {
 
 private func cornzWMMouseCallback(
     _: CGEventTapProxy,
-    _: CGEventType,
+    type: CGEventType,
     event: CGEvent,
     userInfo: UnsafeMutableRawPointer?
 ) -> Unmanaged<CGEvent>? {
     guard let userInfo else { return Unmanaged.passUnretained(event) }
-    Unmanaged<MouseFocusMonitor>.fromOpaque(userInfo).takeUnretainedValue().moved(to: event.location)
-    return Unmanaged.passUnretained(event)
+    let monitor = Unmanaged<MouseFocusMonitor>.fromOpaque(userInfo).takeUnretainedValue()
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        monitor.reenable()
+        return Unmanaged.passUnretained(event)
+    }
+    return monitor.handle(type: type, event: event) ? nil : Unmanaged.passUnretained(event)
 }
 
 struct MouseTargetState {
@@ -151,13 +155,32 @@ struct MouseTargetState {
     }
 
     mutating func moved(to point: CGPoint) -> WindowToken? {
-        let candidate = surfaces.first(where: { $0.frame.contains(point) })?.token
+        let candidate = target(at: point)
         guard candidate != last else { return nil }
         last = candidate
         return candidate
     }
 
+    func target(at point: CGPoint) -> WindowToken? {
+        surfaces.first(where: { $0.frame.contains(point) })?.token
+    }
+
     mutating func reset() { surfaces.removeAll(); last = nil }
+}
+
+struct MouseResizeStep: Equatable, Sendable {
+    let direction: Direction
+    let pixels: CGFloat
+}
+
+enum MouseResizePlanner {
+    static func step(for delta: CGPoint) -> MouseResizeStep? {
+        guard abs(delta.x) > 0.5 || abs(delta.y) > 0.5 else { return nil }
+        if abs(delta.x) >= abs(delta.y) {
+            return MouseResizeStep(direction: delta.x < 0 ? .left : .right, pixels: delta.x)
+        }
+        return MouseResizeStep(direction: delta.y < 0 ? .up : .down, pixels: delta.y)
+    }
 }
 
 struct MouseSurface: Equatable, Sendable {
@@ -167,16 +190,22 @@ struct MouseSurface: Equatable, Sendable {
 
 final class MouseFocusMonitor: @unchecked Sendable {
     var onWindow: (@Sendable (WindowToken) -> Void)?
+    var onResize: (@Sendable (WindowToken, Direction, CGFloat) -> Void)?
     private let lock = NSLock()
     private var state = MouseTargetState()
+    private var resize: (window: WindowToken, point: CGPoint)?
+    private var focusesOnMove = true
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
 
     @discardableResult
-    func start() -> Bool {
+    func start(focusesOnMove: Bool) -> Bool {
+        lock.withLock { self.focusesOnMove = focusesOnMove }
         guard tap == nil else { return true }
-        tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .listenOnly,
-            eventsOfInterest: CGEventMask(1 << CGEventType.mouseMoved.rawValue), callback: cornzWMMouseCallback,
+        let events = [CGEventType.mouseMoved, .rightMouseDown, .rightMouseDragged, .rightMouseUp]
+            .reduce(CGEventMask()) { $0 | CGEventMask(1 << $1.rawValue) }
+        tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .defaultTap,
+            eventsOfInterest: events, callback: cornzWMMouseCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque())
         guard let tap else { return false }
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
@@ -188,15 +217,49 @@ final class MouseFocusMonitor: @unchecked Sendable {
     func stop() {
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         source = nil; tap = nil
-        lock.withLock { state.reset() }
+        lock.withLock { state.reset(); resize = nil }
     }
 
     func update(_ frames: [WindowToken: CGRect], frontToBack: [MouseSurface]) {
         lock.withLock { state.update(frames, frontToBack: frontToBack) }
     }
 
-    fileprivate func moved(to point: CGPoint) {
-        let target = lock.withLock { state.moved(to: point) }
-        if let target { onWindow?(target) }
+    fileprivate func handle(type: CGEventType, event: CGEvent) -> Bool {
+        switch type {
+        case .mouseMoved:
+            let target = lock.withLock { focusesOnMove ? state.moved(to: event.location) : nil }
+            if let target { onWindow?(target) }
+            return false
+        case .rightMouseDown:
+            guard event.flags.contains(.maskAlternate) else { return false }
+            let target = lock.withLock { () -> WindowToken? in
+                guard let target = state.target(at: event.location) else { return nil }
+                resize = (target, event.location)
+                return target
+            }
+            if let target { onWindow?(target) }
+            return target != nil
+        case .rightMouseDragged:
+            let update = lock.withLock { () -> (WindowToken, MouseResizeStep)? in
+                guard let active = resize else { return nil }
+                let delta = CGPoint(x: event.location.x - active.point.x, y: event.location.y - active.point.y)
+                resize = (active.window, event.location)
+                return MouseResizePlanner.step(for: delta).map { (active.window, $0) }
+            }
+            if let (window, step) = update { onResize?(window, step.direction, step.pixels) }
+            return update != nil
+        case .rightMouseUp:
+            return lock.withLock {
+                let wasResizing = resize != nil
+                resize = nil
+                return wasResizing
+            }
+        default:
+            return false
+        }
+    }
+
+    fileprivate func reenable() {
+        if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
 }

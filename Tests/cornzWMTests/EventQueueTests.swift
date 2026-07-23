@@ -28,6 +28,21 @@ final class EventQueueTests: XCTestCase {
         XCTAssertTrue(buffer.events.isEmpty)
     }
 
+    func testCoalescesConsecutiveMouseResizeSteps() {
+        var buffer = EventBuffer()
+        buffer.insert(.mouseResize(a, .right, 4))
+        buffer.insert(.mouseResize(a, .right, 6))
+        buffer.insert(.mouseResize(a, .down, 3))
+        let events = buffer.takeAll()
+        XCTAssertEqual(events.count, 2)
+        guard case let .mouseResize(window, direction, pixels) = events[0] else {
+            return XCTFail("unexpected event")
+        }
+        XCTAssertEqual(window, a)
+        XCTAssertEqual(direction, .right)
+        XCTAssertEqual(pixels, 10)
+    }
+
     func testFrameWriteResultsAreNeverCoalesced() {
         var buffer = EventBuffer()
         let frame = CGRect(x: 1, y: 2, width: 3, height: 4)

@@ -67,6 +67,9 @@ final class WMController {
         mouse.onWindow = { [weak self] window in
             self?.events.push(.mouse(window))
         }
+        mouse.onResize = { [weak self] window, direction, pixels in
+            self?.events.push(.mouseResize(window, direction, pixels))
+        }
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         events.onDrain = { [weak self] pending in self?.drain(pending) }
@@ -99,7 +102,9 @@ final class WMController {
         if lastError?.hasPrefix("Accessibility") == true { lastError = nil }
         if !systemStarted { windowSystem.start(); systemStarted = true }
         else { windowSystem.rescan() }
-        if config.focusFollowsMouse, !mouse.start() { lastError = "Could not create the listen-only mouse event tap." }
+        if !mouse.start(focusesOnMove: config.focusFollowsMouse) {
+            lastError = "Could not create the mouse event tap."
+        }
         publish()
     }
 
@@ -132,9 +137,9 @@ final class WMController {
             config = parsed
             mode = "default"
             lastError = nil
-            if config.focusFollowsMouse, isEnabled {
-                if !mouse.start() { lastError = "Could not create the listen-only mouse event tap." }
-            } else { mouse.stop() }
+            if isEnabled, !mouse.start(focusesOnMove: config.focusFollowsMouse) {
+                lastError = "Could not create the mouse event tap."
+            }
             updateLoginItem()
             applyLayout()
         } catch {
@@ -154,6 +159,7 @@ final class WMController {
             case let .frameObserved(window, frame): accept(frame: frame, for: window)
             case let .command(command): execute(command)
             case let .mouse(window): focusFromMouse(window)
+            case let .mouseResize(window, direction, pixels): resizeFromMouse(window, direction: direction, pixels: pixels)
             case let .frameWriteResult(window, frame, result):
                 guard isEnabled else { continue }
                 switch ledger.completed(frame, for: window, result: result) {
@@ -405,6 +411,14 @@ final class WMController {
             minimumSizes: minimumSizes
         )
         windowSystem.focus(window)
+        applyLayout()
+    }
+
+    private func resizeFromMouse(_ window: WindowToken, direction: Direction, pixels: CGFloat) {
+        guard isEnabled, world.workspace(of: window) == world.visibleWorkspace else { return }
+        let bounds = WindowSystem.mainScreenBounds
+        world.focusIfVisible(window, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
+        world.resizeFocused(direction, pixels: pixels, bounds: bounds)
         applyLayout()
     }
 
