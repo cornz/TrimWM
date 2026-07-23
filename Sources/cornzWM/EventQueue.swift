@@ -7,6 +7,7 @@ enum WMEvent: Sendable {
     case command(WMCommand)
     case mouse(WindowToken)
     case mouseResize(WindowToken, Direction, CGFloat)
+    case mouseColumnMove(WindowToken, WindowToken)
     case frameWriteResult(WindowToken, CGRect, AXFrameWriteResult)
 }
 
@@ -38,7 +39,7 @@ struct EventBuffer {
             }) {
                 events[index] = event
             } else { events.append(event) }
-        case .command, .frameWriteResult:
+        case .command, .mouseColumnMove, .frameWriteResult:
             events.append(event)
         }
     }

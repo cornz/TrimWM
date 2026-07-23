@@ -80,6 +80,15 @@ struct NiriLayout: Equatable, Sendable {
         centered = nil
     }
 
+    mutating func swapColumn(containing window: WindowToken, with target: WindowToken) {
+        guard let source = columnIndex(containing: window),
+              let destination = columnIndex(containing: target),
+              source != destination
+        else { return }
+        columns.swapAt(source, destination)
+        centered = nil
+    }
+
     mutating func consume(_ direction: Direction) {
         guard direction == .left || direction == .right,
               let window = focused,

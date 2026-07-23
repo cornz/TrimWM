@@ -93,4 +93,29 @@ final class InputTests: XCTestCase {
         XCTAssertEqual(state.target(at: CGPoint(x: 50, y: 50)), managed)
         XCTAssertNil(state.target(at: CGPoint(x: 150, y: 50)))
     }
+
+    func testColumnDragRequiresNiriWindowAndCrossesTargetMidpoint() {
+        let source = WindowToken(pid: 1, id: 1)
+        let target = WindowToken(pid: 2, id: 2)
+        let frames = [
+            source: CGRect(x: 0, y: 0, width: 500, height: 600),
+            target: CGRect(x: 500, y: 0, width: 500, height: 600),
+        ]
+        var state = MouseTargetState()
+        state.update(frames, frontToBack: [], columnDraggable: [source, target])
+        XCTAssertEqual(state.columnDragTarget(at: CGPoint(x: 100, y: 100)), source)
+
+        state.update(frames, frontToBack: [], columnDraggable: [])
+        XCTAssertNil(state.columnDragTarget(at: CGPoint(x: 100, y: 100)))
+        XCTAssertFalse(MouseColumnDragPlanner.crossedMidpoint(
+            source: frames[source]!,
+            target: frames[target]!,
+            pointer: CGPoint(x: 740, y: 100)
+        ))
+        XCTAssertTrue(MouseColumnDragPlanner.crossedMidpoint(
+            source: frames[source]!,
+            target: frames[target]!,
+            pointer: CGPoint(x: 750, y: 100)
+        ))
+    }
 }

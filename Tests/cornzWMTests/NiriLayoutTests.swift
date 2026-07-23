@@ -68,6 +68,16 @@ final class NiriLayoutTests: XCTestCase {
         XCTAssertEqual(layout.columns[0].windows, [token(2)])
     }
 
+    func testMouseColumnSwapMovesWholeStack() {
+        var layout = NiriLayout()
+        layout.insert(token(1))
+        layout.insert(token(2))
+        layout.consume(.left)
+        layout.insert(token(3))
+        layout.swapColumn(containing: token(1), with: token(3))
+        XCTAssertEqual(layout.columns.map(\.windows), [[token(3)], [token(1), token(2)]])
+    }
+
     func testPresetAndPixelWidthsAreClamped() {
         var layout = NiriLayout()
         layout.insert(token(1))

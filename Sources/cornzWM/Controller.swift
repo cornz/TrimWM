@@ -75,6 +75,9 @@ final class WMController {
         mouse.onResize = { [weak self] window, direction, pixels in
             self?.events.push(.mouseResize(window, direction, pixels))
         }
+        mouse.onColumnMove = { [weak self] window, target in
+            self?.events.push(.mouseColumnMove(window, target))
+        }
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
@@ -167,6 +170,7 @@ final class WMController {
             case let .command(command): execute(command)
             case let .mouse(window): focusFromMouse(window)
             case let .mouseResize(window, direction, pixels): resizeFromMouse(window, direction: direction, pixels: pixels)
+            case let .mouseColumnMove(window, target): moveColumnFromMouse(window, to: target)
             case let .frameWriteResult(window, frame, result):
                 guard isEnabled else { continue }
                 switch ledger.completed(frame, for: window, result: result) {
@@ -290,7 +294,11 @@ final class WMController {
             do { try journal.record(toJournal) }
             catch {
                 lastError = "Crash journal failed; hiding was cancelled: \(error)"
-                mouse.update(visibleForMouse, frontToBack: windowSystem.mouseSurfaces)
+                mouse.update(
+                    visibleForMouse,
+                    frontToBack: windowSystem.mouseSurfaces,
+                    columnDraggable: columnDraggableWindows
+                )
                 publishFocusFrame(desired, bounds: bounds)
                 publish()
                 return
@@ -299,7 +307,11 @@ final class WMController {
         for (token, frame) in visibleWrites + hiddenWrites where ledger.needsWrite(frame, for: token) {
             write(frame, to: token)
         }
-        mouse.update(visibleForMouse, frontToBack: windowSystem.mouseSurfaces)
+        mouse.update(
+            visibleForMouse,
+            frontToBack: windowSystem.mouseSurfaces,
+            columnDraggable: columnDraggableWindows
+        )
         publishFocusFrame(desired, bounds: bounds)
         publish()
     }
@@ -480,6 +492,28 @@ final class WMController {
         world.focusIfVisible(window, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
         world.resizeFocused(direction, pixels: pixels, bounds: bounds)
         applyLayout()
+    }
+
+    private func moveColumnFromMouse(_ window: WindowToken, to target: WindowToken) {
+        guard isEnabled,
+              world.workspace(of: window) == world.visibleWorkspace,
+              world.workspace(of: target) == world.visibleWorkspace
+        else { return }
+        world.moveNiriColumn(
+            containing: window,
+            to: target,
+            bounds: WindowSystem.mainScreenBounds,
+            gaps: config.gaps,
+            minimumSizes: minimumSizes
+        )
+        applyLayout()
+    }
+
+    private var columnDraggableWindows: Set<WindowToken> {
+        guard world.visible.fullscreen == nil,
+              case let .niri(layout) = world.visible.layout
+        else { return [] }
+        return Set(layout.windows)
     }
 
     private func restoreJournal() {

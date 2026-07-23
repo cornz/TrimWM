@@ -405,6 +405,26 @@ struct World: Equatable, Sendable {
         workspaces[visibleWorkspace - 1] = workspace
     }
 
+    mutating func moveNiriColumn(
+        containing window: WindowToken,
+        to target: WindowToken,
+        bounds: CGRect,
+        gaps: LayoutGaps,
+        minimumSizes: [WindowToken: CGSize] = [:]
+    ) {
+        var workspace = workspaces[visibleWorkspace - 1]
+        guard workspace.windows.contains(window),
+              workspace.windows.contains(target),
+              case var .niri(layout) = workspace.layout
+        else { return }
+        workspace.focused = window
+        layout.focus(window)
+        layout.swapColumn(containing: window, with: target)
+        layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
+        workspace.layout = .niri(layout)
+        workspaces[visibleWorkspace - 1] = workspace
+    }
+
     mutating func resizeFocused(_ direction: Direction, pixels: CGFloat, bounds: CGRect) {
         var workspace = workspaces[visibleWorkspace - 1]
         if let focused = workspace.focused, var frame = workspace.floating[focused] {
