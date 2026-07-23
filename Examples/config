@@ -1,0 +1,90 @@
+# ~/.config/cornzwm/config
+set $mod alt
+
+workspace-count 10
+gaps inner 0
+gaps outer 0
+autotile split-ratio 1.0
+focus-follows-mouse true
+start-at-login true
+
+bindsym $mod+j focus left
+bindsym $mod+k focus down
+bindsym $mod+l focus up
+bindsym $mod+; focus right
+bindsym $mod+q focus next
+bindsym $mod+Shift+j move left
+bindsym $mod+Shift+k move down
+bindsym $mod+Shift+l move up
+bindsym $mod+Shift+; move right
+
+bindsym $mod+h split horizontal
+bindsym $mod+v split vertical
+bindsym $mod+f fullscreen
+bindsym $mod+w layout niri
+bindsym $mod+Shift+e layout autotile
+bindsym $mod+Shift+space floating toggle
+bindsym $mod+comma consume left
+bindsym $mod+period consume right
+bindsym $mod+Shift+comma expel left
+bindsym $mod+Shift+period expel right
+bindsym $mod+c center-column
+
+bindsym $mod+1 workspace 1
+bindsym $mod+2 workspace 2
+bindsym $mod+3 workspace 3
+bindsym $mod+4 workspace 4
+bindsym $mod+5 workspace 5
+bindsym $mod+6 workspace 6
+bindsym $mod+7 workspace 7
+bindsym $mod+8 workspace 8
+bindsym $mod+9 workspace 9
+bindsym $mod+0 workspace 10
+
+bindsym $mod+Shift+1 move-to-workspace 1 follow
+bindsym $mod+Shift+2 move-to-workspace 2 follow
+bindsym $mod+Shift+3 move-to-workspace 3 follow
+bindsym $mod+Shift+4 move-to-workspace 4 follow
+bindsym $mod+Shift+5 move-to-workspace 5 follow
+bindsym $mod+Shift+6 move-to-workspace 6 follow
+bindsym $mod+Shift+7 move-to-workspace 7 follow
+bindsym $mod+Shift+8 move-to-workspace 8 follow
+
+bindsym $mod+Control+1 move-to-workspace 1
+bindsym $mod+Control+2 move-to-workspace 2
+bindsym $mod+Control+3 move-to-workspace 3
+bindsym $mod+Control+4 move-to-workspace 4
+bindsym $mod+Control+5 move-to-workspace 5
+bindsym $mod+Control+6 move-to-workspace 6
+bindsym $mod+Control+7 move-to-workspace 7
+bindsym $mod+Control+8 move-to-workspace 8
+
+bindsym $mod+Shift+0 balance-sizes
+bindsym $mod+return launch open -a Warp
+bindsym $mod+Shift+c reload
+bindsym $mod+r mode resize
+
+mode resize {
+    bindsym h resize left -50
+    bindsym j resize down 50
+    bindsym k resize up -50
+    bindsym l resize right 50
+    bindsym return mode default
+    bindsym escape mode default
+    bindsym r mode default
+}
+
+assign [app_id="com.apple.MobileSMS"] workspace 5
+assign [app_id="com.tinyspeck.slackmacgap"] workspace 5
+assign [app_id="com.hnc.Discord"] workspace 5
+assign [app_id="com.apple.Safari"] workspace 1
+assign [app_id="com.microsoft.edgemac"] workspace 1
+assign [app_id="com.todesktop.230313mzl4w4u92"] workspace 2
+assign [app_id="com.jetbrains.WebStorm"] workspace 2
+assign [app_id="com.openai.Codex"] workspace 6
+
+for_window [app_id="com.jetbrains.IntelliJ"] floating enable
+for_window [app_id="com.1password.1password"] floating enable
+for_window [app_id="com.apple.systempreferences"] floating enable
+for_window [app_id="com.apple.finder"] floating enable
+for_window [app_id="com.apple.QuickTimePlayerX"] floating enable

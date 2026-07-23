@@ -1,0 +1,202 @@
+@preconcurrency import Carbon
+import CoreGraphics
+import Foundation
+
+enum HotKeyError: Error, Equatable { case invalidChord(String), unsupportedKey(String), carbon(OSStatus) }
+
+struct HotKeyPlan: Equatable, Sendable {
+    let keyCode: UInt32
+    let modifiers: UInt32
+    let command: WMCommand
+}
+
+enum HotKeyPlanner {
+    static func plan(_ binding: Binding) throws -> HotKeyPlan {
+        let parts = binding.chord.split(separator: "+").map { $0.lowercased() }
+        guard let key = parts.last, !key.isEmpty else { throw HotKeyError.invalidChord(binding.chord) }
+        var modifiers: UInt32 = 0
+        for modifier in parts.dropLast() {
+            switch modifier {
+            case "alt", "option": modifiers |= UInt32(optionKey)
+            case "shift": modifiers |= UInt32(shiftKey)
+            case "ctrl", "control": modifiers |= UInt32(controlKey)
+            case "cmd", "command": modifiers |= UInt32(cmdKey)
+            default: throw HotKeyError.invalidChord(binding.chord)
+            }
+        }
+        guard let code = keyCodes[String(key)] else { throw HotKeyError.unsupportedKey(String(key)) }
+        return HotKeyPlan(keyCode: code, modifiers: modifiers, command: binding.command)
+    }
+
+    private static let keyCodes: [String: UInt32] = [
+        "a": UInt32(kVK_ANSI_A), "b": UInt32(kVK_ANSI_B), "c": UInt32(kVK_ANSI_C), "d": UInt32(kVK_ANSI_D),
+        "e": UInt32(kVK_ANSI_E), "f": UInt32(kVK_ANSI_F), "g": UInt32(kVK_ANSI_G), "h": UInt32(kVK_ANSI_H),
+        "i": UInt32(kVK_ANSI_I), "j": UInt32(kVK_ANSI_J), "k": UInt32(kVK_ANSI_K), "l": UInt32(kVK_ANSI_L),
+        "m": UInt32(kVK_ANSI_M), "n": UInt32(kVK_ANSI_N), "o": UInt32(kVK_ANSI_O), "p": UInt32(kVK_ANSI_P),
+        "q": UInt32(kVK_ANSI_Q), "r": UInt32(kVK_ANSI_R), "s": UInt32(kVK_ANSI_S), "t": UInt32(kVK_ANSI_T),
+        "u": UInt32(kVK_ANSI_U), "v": UInt32(kVK_ANSI_V), "w": UInt32(kVK_ANSI_W), "x": UInt32(kVK_ANSI_X),
+        "y": UInt32(kVK_ANSI_Y), "z": UInt32(kVK_ANSI_Z),
+        "0": UInt32(kVK_ANSI_0), "1": UInt32(kVK_ANSI_1), "2": UInt32(kVK_ANSI_2), "3": UInt32(kVK_ANSI_3),
+        "4": UInt32(kVK_ANSI_4), "5": UInt32(kVK_ANSI_5), "6": UInt32(kVK_ANSI_6), "7": UInt32(kVK_ANSI_7),
+        "8": UInt32(kVK_ANSI_8), "9": UInt32(kVK_ANSI_9), ";": UInt32(kVK_ANSI_Semicolon),
+        "comma": UInt32(kVK_ANSI_Comma), "period": UInt32(kVK_ANSI_Period),
+        "return": UInt32(kVK_Return), "enter": UInt32(kVK_Return), "escape": UInt32(kVK_Escape), "space": UInt32(kVK_Space),
+    ]
+}
+
+private func cornzWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, userData: UnsafeMutableRawPointer?) -> OSStatus {
+    guard let event, let userData else { return OSStatus(eventNotHandledErr) }
+    var id = EventHotKeyID()
+    let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout.size(ofValue: id), nil, &id)
+    guard status == noErr else { return status }
+    Unmanaged<HotKeyManager>.fromOpaque(userData).takeUnretainedValue().fire(id.id)
+    return noErr
+}
+
+final class HotKeyManager: @unchecked Sendable {
+    var onCommand: (@Sendable (WMCommand) -> Void)?
+    private var handler: EventHandlerRef?
+    private var references: [EventHotKeyRef] = []
+    private var commands: [UInt32: WMCommand] = [:]
+    private var plans: [HotKeyPlan] = []
+    private var handlerStatus: OSStatus = noErr
+
+    init() {
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        handlerStatus = InstallEventHandler(GetApplicationEventTarget(), cornzWMHotKeyHandler, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+    }
+
+    deinit {
+        references.forEach { UnregisterEventHotKey($0) }
+        if let handler { RemoveEventHandler(handler) }
+    }
+
+    func register(_ bindings: [Binding]) throws {
+        guard handlerStatus == noErr, handler != nil else { throw HotKeyError.carbon(handlerStatus) }
+        let requested = try bindings.map(HotKeyPlanner.plan)
+        guard requested != plans else { return }
+        let previous = plans
+        references.forEach { UnregisterEventHotKey($0) }
+        references.removeAll()
+        commands.removeAll()
+        do {
+            let installed = try install(requested)
+            references = installed.0
+            commands = installed.1
+            plans = requested
+        } catch {
+            if let restored = try? install(previous) {
+                references = restored.0
+                commands = restored.1
+                plans = previous
+            }
+            throw error
+        }
+    }
+
+    func unregister() {
+        references.forEach { UnregisterEventHotKey($0) }
+        references.removeAll()
+        commands.removeAll()
+        plans.removeAll()
+    }
+
+    private func install(_ plans: [HotKeyPlan]) throws -> ([EventHotKeyRef], [UInt32: WMCommand]) {
+        var newReferences: [EventHotKeyRef] = []
+        var newCommands: [UInt32: WMCommand] = [:]
+        for (offset, plan) in plans.enumerated() {
+            let id = UInt32(offset + 1)
+            var reference: EventHotKeyRef?
+            let status = RegisterEventHotKey(plan.keyCode, plan.modifiers, EventHotKeyID(signature: 0x43575A32, id: id), GetApplicationEventTarget(), 0, &reference)
+            guard status == noErr, let reference else {
+                newReferences.forEach { UnregisterEventHotKey($0) }
+                throw HotKeyError.carbon(status)
+            }
+            newReferences.append(reference)
+            newCommands[id] = plan.command
+        }
+        return (newReferences, newCommands)
+    }
+
+    fileprivate func fire(_ id: UInt32) {
+        if let command = commands[id] { onCommand?(command) }
+    }
+}
+
+private func cornzWMMouseCallback(
+    _: CGEventTapProxy,
+    _: CGEventType,
+    event: CGEvent,
+    userInfo: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let userInfo else { return Unmanaged.passUnretained(event) }
+    Unmanaged<MouseFocusMonitor>.fromOpaque(userInfo).takeUnretainedValue().moved(to: event.location)
+    return Unmanaged.passUnretained(event)
+}
+
+struct MouseTargetState {
+    private var surfaces: [MouseSurface] = []
+    private var last: WindowToken?
+
+    mutating func update(_ values: [WindowToken: CGRect], frontToBack: [MouseSurface]) {
+        let ordered = frontToBack.compactMap { surface -> MouseSurface? in
+            guard let token = surface.token else { return surface }
+            return values[token].map { MouseSurface(token: token, frame: $0) }
+        }
+        let known = Set(frontToBack.compactMap(\.token))
+        surfaces = ordered + values
+            .filter { !known.contains($0.key) }
+            .sorted { $0.key < $1.key }
+            .map { MouseSurface(token: $0.key, frame: $0.value) }
+    }
+
+    mutating func moved(to point: CGPoint) -> WindowToken? {
+        let candidate = surfaces.first(where: { $0.frame.contains(point) })?.token
+        guard candidate != last else { return nil }
+        last = candidate
+        return candidate
+    }
+
+    mutating func reset() { surfaces.removeAll(); last = nil }
+}
+
+struct MouseSurface: Equatable, Sendable {
+    let token: WindowToken?
+    let frame: CGRect
+}
+
+final class MouseFocusMonitor: @unchecked Sendable {
+    var onWindow: (@Sendable (WindowToken) -> Void)?
+    private let lock = NSLock()
+    private var state = MouseTargetState()
+    private var tap: CFMachPort?
+    private var source: CFRunLoopSource?
+
+    @discardableResult
+    func start() -> Bool {
+        guard tap == nil else { return true }
+        tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .listenOnly,
+            eventsOfInterest: CGEventMask(1 << CGEventType.mouseMoved.rawValue), callback: cornzWMMouseCallback,
+            userInfo: Unmanaged.passUnretained(self).toOpaque())
+        guard let tap else { return false }
+        source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
+        CGEvent.tapEnable(tap: tap, enable: true)
+        return true
+    }
+
+    func stop() {
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        source = nil; tap = nil
+        lock.withLock { state.reset() }
+    }
+
+    func update(_ frames: [WindowToken: CGRect], frontToBack: [MouseSurface]) {
+        lock.withLock { state.update(frames, frontToBack: frontToBack) }
+    }
+
+    fileprivate func moved(to point: CGPoint) {
+        let target = lock.withLock { state.moved(to: point) }
+        if let target { onWindow?(target) }
+    }
+}

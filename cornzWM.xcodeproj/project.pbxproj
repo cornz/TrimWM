@@ -1,0 +1,237 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00000000000000000000101 /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000011 /* App.swift */; };
+		A00000000000000000000102 /* Model.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000012 /* Model.swift */; };
+		A00000000000000000000103 /* Geometry.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000013 /* Geometry.swift */; };
+		A00000000000000000000104 /* BSPLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000014 /* BSPLayout.swift */; };
+		A00000000000000000000105 /* NiriLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000015 /* NiriLayout.swift */; };
+		A00000000000000000000106 /* World.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000016 /* World.swift */; };
+		A00000000000000000000107 /* Config.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000017 /* Config.swift */; };
+		A00000000000000000000108 /* CrashJournal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000018 /* CrashJournal.swift */; };
+		A00000000000000000000109 /* WindowSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000019 /* WindowSystem.swift */; };
+		A0000000000000000000010A /* Input.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001A /* Input.swift */; };
+		A0000000000000000000010B /* Controller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* Controller.swift */; };
+		A0000000000000000000010C /* SkyLight.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* SkyLight.swift */; };
+		A0000000000000000000010D /* EventQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001D /* EventQueue.swift */; };
+		A00000000000000000000111 /* BSPLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000021 /* BSPLayoutTests.swift */; };
+		A00000000000000000000112 /* NiriLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* NiriLayoutTests.swift */; };
+		A00000000000000000000113 /* GeometryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000023 /* GeometryTests.swift */; };
+		A00000000000000000000114 /* WorldTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000024 /* WorldTests.swift */; };
+		A00000000000000000000115 /* ConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000025 /* ConfigTests.swift */; };
+		A00000000000000000000116 /* CrashJournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000026 /* CrashJournalTests.swift */; };
+		A00000000000000000000117 /* WindowSystemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000027 /* WindowSystemTests.swift */; };
+		A00000000000000000000118 /* InputTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000028 /* InputTests.swift */; };
+		A00000000000000000000119 /* SkyLightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000029 /* SkyLightTests.swift */; };
+		A0000000000000000000011A /* EventQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002A /* EventQueueTests.swift */; };
+		A0000000000000000000011B /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002B /* PerformanceTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A00000000000000000000201 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A00000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A00000000000000000000301;
+			remoteInfo = cornzWM;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A00000000000000000000011 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		A00000000000000000000012 /* Model.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Model.swift; sourceTree = "<group>"; };
+		A00000000000000000000013 /* Geometry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Geometry.swift; sourceTree = "<group>"; };
+		A00000000000000000000014 /* BSPLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BSPLayout.swift; sourceTree = "<group>"; };
+		A00000000000000000000015 /* NiriLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NiriLayout.swift; sourceTree = "<group>"; };
+		A00000000000000000000016 /* World.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = World.swift; sourceTree = "<group>"; };
+		A00000000000000000000017 /* Config.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Config.swift; sourceTree = "<group>"; };
+		A00000000000000000000018 /* CrashJournal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashJournal.swift; sourceTree = "<group>"; };
+		A00000000000000000000019 /* WindowSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSystem.swift; sourceTree = "<group>"; };
+		A0000000000000000000001A /* Input.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Input.swift; sourceTree = "<group>"; };
+		A0000000000000000000001B /* Controller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Controller.swift; sourceTree = "<group>"; };
+		A0000000000000000000001C /* SkyLight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyLight.swift; sourceTree = "<group>"; };
+		A0000000000000000000001D /* EventQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueue.swift; sourceTree = "<group>"; };
+		A00000000000000000000021 /* BSPLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BSPLayoutTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000022 /* NiriLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NiriLayoutTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000023 /* GeometryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeometryTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000024 /* WorldTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorldTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000025 /* ConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfigTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000026 /* CrashJournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrashJournalTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000027 /* WindowSystemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowSystemTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000028 /* InputTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000029 /* SkyLightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyLightTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000002A /* EventQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueueTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000002B /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
+		A00000000000000000000031 /* cornzWM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = cornzWM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000032 /* cornzWMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = cornzWMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A00000000000000000000401 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000402 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A00000000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000003 /* Sources */,
+				A00000000000000000000004 /* Tests */,
+				A00000000000000000000005 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A00000000000000000000003 /* Sources */ = {
+			isa = PBXGroup;
+			children = (A00000000000000000000006 /* cornzWM */);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000004 /* Tests */ = {
+			isa = PBXGroup;
+			children = (A00000000000000000000007 /* cornzWMTests */);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000005 /* Products */ = {
+			isa = PBXGroup;
+			children = (A00000000000000000000031 /* cornzWM.app */, A00000000000000000000032 /* cornzWMTests.xctest */);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000006 /* cornzWM */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000011 /* App.swift */,
+				A00000000000000000000012 /* Model.swift */,
+				A00000000000000000000013 /* Geometry.swift */,
+				A00000000000000000000014 /* BSPLayout.swift */,
+				A00000000000000000000015 /* NiriLayout.swift */,
+				A00000000000000000000016 /* World.swift */,
+				A00000000000000000000017 /* Config.swift */,
+				A00000000000000000000018 /* CrashJournal.swift */,
+				A00000000000000000000019 /* WindowSystem.swift */,
+				A0000000000000000000001A /* Input.swift */,
+				A0000000000000000000001B /* Controller.swift */,
+				A0000000000000000000001C /* SkyLight.swift */,
+				A0000000000000000000001D /* EventQueue.swift */,
+			);
+			path = cornzWM;
+			sourceTree = "<group>";
+		};
+		A00000000000000000000007 /* cornzWMTests */ = {
+			isa = PBXGroup;
+			children = (
+				A00000000000000000000021 /* BSPLayoutTests.swift */,
+				A00000000000000000000022 /* NiriLayoutTests.swift */,
+				A00000000000000000000023 /* GeometryTests.swift */,
+				A00000000000000000000024 /* WorldTests.swift */,
+				A00000000000000000000025 /* ConfigTests.swift */,
+				A00000000000000000000026 /* CrashJournalTests.swift */,
+				A00000000000000000000027 /* WindowSystemTests.swift */,
+				A00000000000000000000028 /* InputTests.swift */,
+				A00000000000000000000029 /* SkyLightTests.swift */,
+				A0000000000000000000002A /* EventQueueTests.swift */,
+				A0000000000000000000002B /* PerformanceTests.swift */,
+			);
+			path = cornzWMTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A00000000000000000000301 /* cornzWM */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000602;
+			buildPhases = (A00000000000000000000411, A00000000000000000000401, A00000000000000000000421);
+			buildRules = ();
+			dependencies = ();
+			name = cornzWM;
+			productName = cornzWM;
+			productReference = A00000000000000000000031 /* cornzWM.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A00000000000000000000302 /* cornzWMTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A00000000000000000000603;
+			buildPhases = (A00000000000000000000412, A00000000000000000000402, A00000000000000000000422);
+			buildRules = ();
+			dependencies = (A00000000000000000000202);
+			name = cornzWMTests;
+			productName = cornzWMTests;
+			productReference = A00000000000000000000032 /* cornzWMTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A00000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 2660;
+				LastUpgradeCheck = 2660;
+				TargetAttributes = {
+					A00000000000000000000301 = {CreatedOnToolsVersion = 26.0; };
+					A00000000000000000000302 = {CreatedOnToolsVersion = 26.0; TestTargetID = A00000000000000000000301; };
+				};
+			};
+			buildConfigurationList = A00000000000000000000601;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A00000000000000000000002;
+			productRefGroup = A00000000000000000000005 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A00000000000000000000301 /* cornzWM */, A00000000000000000000302 /* cornzWMTests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A00000000000000000000421 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A00000000000000000000422 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A00000000000000000000411 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A00000000000000000000101, A00000000000000000000102, A00000000000000000000103, A00000000000000000000104, A00000000000000000000105, A00000000000000000000106, A00000000000000000000107, A00000000000000000000108, A00000000000000000000109, A0000000000000000000010A, A0000000000000000000010B, A0000000000000000000010C, A0000000000000000000010D);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A00000000000000000000412 = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (A00000000000000000000111, A00000000000000000000112, A00000000000000000000113, A00000000000000000000114, A00000000000000000000115, A00000000000000000000116, A00000000000000000000117, A00000000000000000000118, A00000000000000000000119, A0000000000000000000011A, A0000000000000000000011B);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A00000000000000000000202 = {isa = PBXTargetDependency; target = A00000000000000000000301 /* cornzWM */; targetProxy = A00000000000000000000201; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		A00000000000000000000501 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Debug; };
+		A00000000000000000000502 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Release; };
+		A00000000000000000000511 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "cornzWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM; PRODUCT_MODULE_NAME = cornzWM; PRODUCT_NAME = cornzWM; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		A00000000000000000000512 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "cornzWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM; PRODUCT_MODULE_NAME = cornzWM; PRODUCT_NAME = cornzWM; }; name = Release; };
+		A00000000000000000000521 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM.Tests; PRODUCT_NAME = cornzWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cornzWM.app/Contents/MacOS/cornzWM"; }; name = Debug; };
+		A00000000000000000000522 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM.Tests; PRODUCT_NAME = cornzWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cornzWM.app/Contents/MacOS/cornzWM"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A00000000000000000000601 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000501, A00000000000000000000502); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000602 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000511, A00000000000000000000512); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		A00000000000000000000603 = {isa = XCConfigurationList; buildConfigurations = (A00000000000000000000521, A00000000000000000000522); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A00000000000000000000001 /* Project object */;
+}
