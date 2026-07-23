@@ -34,6 +34,7 @@ enum CommandTargetResolver {
 @MainActor
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
+    var onFocusFrame: ((CGRect?) -> Void)?
     private(set) var isEnabled = false
 
     private let windowSystem = WindowSystem()
@@ -72,6 +73,7 @@ final class WMController {
         }
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
+        windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
         events.onDrain = { [weak self] pending in self?.drain(pending) }
     }
 
@@ -113,6 +115,7 @@ final class WMController {
         isEnabled = false
         hotKeys.unregister()
         mouse.stop()
+        onFocusFrame?(nil)
         restoreJournal()
         publish()
     }
@@ -284,6 +287,7 @@ final class WMController {
             catch {
                 lastError = "Crash journal failed; hiding was cancelled: \(error)"
                 mouse.update(visibleForMouse, frontToBack: windowSystem.mouseSurfaces)
+                publishFocusFrame(desired, bounds: bounds)
                 publish()
                 return
             }
@@ -292,7 +296,21 @@ final class WMController {
             write(frame, to: token)
         }
         mouse.update(visibleForMouse, frontToBack: windowSystem.mouseSurfaces)
+        publishFocusFrame(desired, bounds: bounds)
         publish()
+    }
+
+    private func publishFocusFrame(_ desired: [WindowToken: CGRect], bounds: CGRect) {
+        guard let window = world.visible.focused,
+              window.pid == NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              native[window]?.isOnCurrentSpace == true,
+              let frame = desired[window],
+              frame.intersects(bounds)
+        else {
+            onFocusFrame?(nil)
+            return
+        }
+        onFocusFrame?(frame)
     }
 
     private func execute(_ command: WMCommand) {

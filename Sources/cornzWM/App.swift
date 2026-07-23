@@ -1,5 +1,62 @@
 import AppKit
 
+enum FocusBorderGeometry {
+    static func appKitFrame(_ frame: CGRect, screenFrame: CGRect) -> CGRect {
+        CGRect(
+            x: frame.minX,
+            y: screenFrame.maxY - frame.maxY,
+            width: frame.width,
+            height: frame.height
+        )
+    }
+}
+
+@MainActor
+final class FocusBorder {
+    private let panel: NSPanel
+    private var displayedFrame: CGRect?
+
+    init() {
+        panel = NSPanel(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        panel.backgroundColor = .clear
+        panel.isOpaque = false
+        panel.hasShadow = false
+        panel.ignoresMouseEvents = true
+        panel.hidesOnDeactivate = false
+        panel.isReleasedWhenClosed = false
+        panel.level = .floating
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
+        let content = NSView(frame: .zero)
+        content.wantsLayer = true
+        content.layer?.borderColor = NSColor.controlAccentColor.cgColor
+        content.layer?.borderWidth = 2
+        content.layer?.cornerRadius = 5
+        panel.contentView = content
+    }
+
+    func update(_ frame: CGRect?) {
+        guard let frame,
+              let screen = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main
+        else {
+            displayedFrame = nil
+            panel.orderOut(nil)
+            return
+        }
+        let expanded = frame.insetBy(dx: -2, dy: -2)
+        let display = FocusBorderGeometry.appKitFrame(expanded, screenFrame: screen.frame)
+        if displayedFrame != display {
+            panel.setFrame(display, display: true, animate: false)
+            displayedFrame = display
+        }
+        if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+}
+
 enum RuntimeEnvironment {
     static func shouldStartWindowManager(_ environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool {
         !["XCTestConfigurationFilePath", "XCTestBundlePath", "XCInjectBundleInto"]
@@ -22,6 +79,7 @@ enum cornzWMMain {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var controller: WMController?
+    private let focusBorder = FocusBorder()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard RuntimeEnvironment.shouldStartWindowManager() else { return }
@@ -29,6 +87,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
         let controller = WMController()
         controller.onStatus = { [weak self] status, error in self?.updateMenu(status: status, error: error) }
+        controller.onFocusFrame = { [weak self] frame in self?.focusBorder.update(frame) }
         self.controller = controller
         updateMenu(status: "Starting", error: nil)
         controller.start()

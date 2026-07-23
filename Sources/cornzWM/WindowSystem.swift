@@ -604,6 +604,7 @@ private final class AXContext: @unchecked Sendable {
 final class WindowSystem: NSObject {
     var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)?
     var onFrame: ((WindowToken, CGRect) -> Void)?
+    var onApplicationActivated: ((pid_t) -> Void)?
     private var contexts: [pid_t: AXContext] = [:]
     private var windows: [WindowToken: AXWindowSnapshot] = [:]
     private let skyLight = SkyLight()
@@ -704,6 +705,7 @@ final class WindowSystem: NSObject {
 
     @objc private func applicationActivated(_ notification: Notification) {
         guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+        onApplicationActivated?(application.processIdentifier)
         contexts[application.processIdentifier]?.scan()
     }
 

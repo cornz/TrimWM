@@ -3,6 +3,15 @@ import XCTest
 @testable import cornzWM
 
 final class GeometryTests: XCTestCase {
+    func testFocusBorderConvertsTopLeftWindowCoordinatesToAppKit() {
+        let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let window = CGRect(x: -2, y: 28, width: 964, height: 970)
+        XCTAssertEqual(
+            FocusBorderGeometry.appKitFrame(window, screenFrame: screen),
+            CGRect(x: -2, y: 82, width: 964, height: 970)
+        )
+    }
+
     func testNearestRequiresCorrectHalfPlaneAndPrefersAlignedWindow() {
         let source = WindowToken(pid: 1, id: 1)
         let aligned = WindowToken(pid: 1, id: 2)
