@@ -146,7 +146,7 @@ permission.
 
 TrimWM is an independent implementation inspired by the responsiveness and
 per-process Accessibility architecture of
-[OmniWM](https://github.com/OmniWM/OmniWM), the tree workflow of
+[OmniWM](https://github.com/BarutSRB/OmniWM), the tree workflow of
 [i3](https://i3wm.org/), the automatic split rule from
 [nwg-piotr/autotiling](https://github.com/nwg-piotr/autotiling), and the
 scrolling-column interaction model of [niri](https://github.com/YaLTeR/niri).
