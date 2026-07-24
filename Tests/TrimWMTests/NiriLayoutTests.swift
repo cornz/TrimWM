@@ -107,6 +107,27 @@ final class NiriLayoutTests: XCTestCase {
         XCTAssertEqual(frames[token(2)]?.height, 300)
     }
 
+    func testVerticalResizeRejectsHorizontalDirectionAndSupportsDownwardNeighbour() {
+        var layout = NiriLayout()
+        layout.insert(token(1))
+        layout.insert(token(2))
+        layout.consume(.left)
+        let before = layout.frames(in: bounds, gaps: gaps)
+
+        layout.resizeFocusedVertically(.left, by: 60, viewportHeight: 600)
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps), before)
+
+        layout.focus(token(1))
+        layout.resizeFocusedVertically(.down, by: 60, viewportHeight: 600)
+        let resized = layout.frames(in: bounds, gaps: gaps)
+        XCTAssertEqual(resized[token(1)]?.height, 360)
+        XCTAssertEqual(resized[token(2)]?.height, 240)
+    }
+
+    func testEmptyLayoutHasNoFrames() {
+        XCTAssertEqual(NiriLayout().frames(in: bounds, gaps: gaps), [:])
+    }
+
     func testRevealAndCenterUpdateViewportWithoutChangingColumnWidths() {
         var layout = NiriLayout()
         layout.insert(token(1))

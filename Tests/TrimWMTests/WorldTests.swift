@@ -38,6 +38,43 @@ final class WorldTests: XCTestCase {
         XCTAssertEqual(world.visibleWorkspace, 4)
     }
 
+    func testMoveToWorkspaceNoOpsStillHonorValidFollowTarget() {
+        var world = World(workspaceCount: 3)
+        world.move(
+            token(99),
+            to: 2,
+            follow: true,
+            currentFrame: bounds,
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        XCTAssertEqual(world.visibleWorkspace, 2)
+
+        world.add(token(1), to: 2, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.move(
+            token(1),
+            to: 2,
+            follow: true,
+            currentFrame: bounds,
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        XCTAssertEqual(world.workspace(of: token(1)), 2)
+
+        world.move(
+            token(1),
+            to: 99,
+            follow: false,
+            currentFrame: bounds,
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        XCTAssertEqual(world.workspace(of: token(1)), 2)
+    }
+
     func testMoveCommandPrefersNativeFocusFromFrontmostAppAcrossWorkspaces() {
         var world = World(workspaceCount: 3)
         let visible = WindowToken(pid: 7, id: 1)
@@ -316,6 +353,86 @@ final class WorldTests: XCTestCase {
         world.remove(token(2))
         XCTAssertNil(world.workspace(of: token(2)))
         XCTAssertEqual(Set(world.visible.windows), [token(1), token(3)])
+    }
+
+    func testMouseMoveRejectsMissingWindowsAndSwapsBothLayoutModes() {
+        var world = World(workspaceCount: 1)
+        world.add(token(1), to: 1, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.add(token(2), to: 1, bounds: bounds, gaps: gaps, splitRatio: 1)
+        let initial = world.visibleFrames(bounds: bounds, gaps: gaps)
+
+        world.moveTiledItem(
+            containing: token(99),
+            to: token(1),
+            bounds: bounds,
+            gaps: gaps
+        )
+        world.moveTiledItem(
+            containing: token(1),
+            to: token(99),
+            bounds: bounds,
+            gaps: gaps
+        )
+        XCTAssertEqual(world.visibleFrames(bounds: bounds, gaps: gaps), initial)
+
+        world.moveTiledItem(
+            containing: token(1),
+            to: token(2),
+            bounds: bounds,
+            gaps: gaps
+        )
+        XCTAssertEqual(world.visibleFrames(bounds: bounds, gaps: gaps)[token(1)], initial[token(2)])
+
+        world.changeVisibleLayout(to: .niri, bounds: bounds, gaps: gaps, splitRatio: 1)
+        world.moveTiledItem(
+            containing: token(1),
+            to: token(2),
+            bounds: bounds,
+            gaps: gaps
+        )
+        XCTAssertEqual(world.visible.focused, token(1))
+        XCTAssertEqual(world.visible.layout.windows, [token(1), token(2)])
+    }
+
+    func testWorldReflowCoversNoOpWrongLayoutAndSuccessfulRebuild() {
+        var empty = World(workspaceCount: 1)
+        empty.reflowVisibleToFit(bounds: bounds, gaps: gaps, minimumSizes: [:])
+        XCTAssertTrue(empty.visible.windows.isEmpty)
+
+        empty.changeVisibleLayout(to: .niri, bounds: bounds, gaps: gaps, splitRatio: 1)
+        empty.reflowVisibleToFit(bounds: bounds, gaps: gaps, minimumSizes: [:])
+        XCTAssertEqual(empty.visible.layout.mode, .niri)
+
+        let windows = (1...5).map { token(CGWindowID($0)) }
+        let largeBounds = CGRect(x: 0, y: 0, width: 1920, height: 972)
+        var world = World(workspaceCount: 1)
+        for window in windows {
+            world.setNextSplit(.vertical)
+            world.add(window, to: 1, bounds: largeBounds, gaps: gaps, splitRatio: 1)
+        }
+        let minimums = [
+            windows[0]: CGSize(width: 1, height: 1),
+            windows[1]: CGSize(width: 574, height: 1),
+            windows[2]: CGSize(width: 740, height: 486),
+            windows[3]: CGSize(width: 600, height: 400),
+            windows[4]: CGSize(width: 715, height: 252),
+        ]
+
+        world.reflowVisibleToFit(
+            bounds: largeBounds,
+            gaps: gaps,
+            minimumSizes: minimums
+        )
+
+        let frames = world.visibleFrames(
+            bounds: largeBounds,
+            gaps: gaps,
+            minimumSizes: minimums
+        )
+        for window in windows {
+            XCTAssertGreaterThanOrEqual(frames[window]!.width + 4, minimums[window]!.width)
+            XCTAssertGreaterThanOrEqual(frames[window]!.height + 4, minimums[window]!.height)
+        }
     }
 
     func testNoOpCommandsAndFullscreenCleanupAreSafe() {

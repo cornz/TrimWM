@@ -48,23 +48,6 @@ enum WorkspaceLayout: Equatable, Sendable {
         }
     }
 
-    mutating func focus(
-        _ direction: Direction,
-        bounds: CGRect,
-        gaps: LayoutGaps,
-        minimumSizes: [WindowToken: CGSize] = [:]
-    ) {
-        switch self {
-        case var .autotile(layout):
-            layout.focus(direction, in: bounds, gaps: gaps, minimumSizes: minimumSizes)
-            self = .autotile(layout)
-        case var .niri(layout):
-            layout.focus(direction)
-            layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
-            self = .niri(layout)
-        }
-    }
-
     mutating func move(
         _ direction: Direction,
         bounds: CGRect,
@@ -224,7 +207,7 @@ struct WorkspaceState: Equatable, Sendable {
             return result
         }
         var result = layout.frames(bounds: bounds, gaps: gaps, minimumSizes: minimumSizes)
-        result.merge(floating) { _, floating in floating }
+        for (window, frame) in floating { result[window] = frame }
         return result
     }
 }
@@ -379,7 +362,7 @@ struct World: Equatable, Sendable {
         let workspace = workspaces[visibleWorkspace - 1]
         let order = workspace.windows
         guard !order.isEmpty else { return }
-        let index = workspace.focused.flatMap { order.firstIndex(of: $0) } ?? -1
+        let index = order.firstIndex(of: workspace.focused!)!
         workspaces[visibleWorkspace - 1].setFocus(
             order[(index + 1) % order.count],
             bounds: bounds,

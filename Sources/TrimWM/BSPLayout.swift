@@ -190,8 +190,8 @@ struct BSPLayout: Equatable, Sendable {
             focused = window
             return
         }
-        let target = focused.flatMap { root.windows.contains($0) ? $0 : nil } ?? root.windows.last!
-        let targetFrame = frames(in: bounds, gaps: gaps)[target] ?? bounds
+        let target = focused!
+        let targetFrame = frames(in: bounds, gaps: gaps)[target]!
         let automatic: SplitAxis = targetFrame.height > targetFrame.width / max(0.01, splitRatio) ? .vertical : .horizontal
         let axis = nextSplit ?? automatic
         nextSplit = nil
@@ -226,10 +226,7 @@ struct BSPLayout: Equatable, Sendable {
 
     mutating func focusNext() {
         guard !windows.isEmpty else { return }
-        guard let focused, let index = windows.firstIndex(of: focused) else {
-            self.focused = windows[0]
-            return
-        }
+        let index = windows.firstIndex(of: focused!)!
         self.focused = windows[(index + 1) % windows.count]
     }
 
@@ -292,14 +289,14 @@ struct BSPLayout: Equatable, Sendable {
                 let heights = group.map { max(1, minimumSizes[$0]?.height ?? 1) }
                 columns.append((
                     Self.chain(group.map(BSPNode.leaf), lengths: heights, axis: .vertical, gap: gap),
-                    widths.max() ?? 1,
+                    widths.max()!,
                     heights.reduce(0, +) + gap * CGFloat(max(0, group.count - 1))
                 ))
             }
             let neededWidth = columns.reduce(0) { $0 + $1.width }
                 + gap * CGFloat(max(0, columns.count - 1))
             guard neededWidth <= usable.width + 4,
-                  (columns.map(\.height).max() ?? 0) <= usable.height + 4
+                  columns.map(\.height).max()! <= usable.height + 4
             else { continue }
             root = Self.chain(columns.map(\.node), lengths: columns.map(\.width), axis: .horizontal, gap: gap)
             return true

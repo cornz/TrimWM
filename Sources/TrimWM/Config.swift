@@ -165,7 +165,7 @@ enum ConfigParser {
             case "bindsym":
                 guard fields.count >= 3 else { throw ConfigError.line(number, "binding needs chord and command") }
                 let commandText = fields.dropFirst(2).joined(separator: " ")
-                config.bindings[mode, default: []].append(Binding(chord: fields[1], command: try parseCommand(commandText, line: number)))
+                config.bindings[mode]!.append(Binding(chord: fields[1], command: try parseCommand(commandText, line: number)))
             case "assign":
                 let bundle = try bundleID(in: line, line: number)
                 guard let workspaceWord = fields.last, let workspace = Int(workspaceWord), line.contains("] workspace ") else { throw ConfigError.line(number, "invalid assignment") }
@@ -271,8 +271,4 @@ enum ConfigParser {
         if !word.isEmpty { result.append(word) }
         return result
     }
-}
-
-private extension Array {
-    subscript(safe index: Int) -> Element? { indices.contains(index) ? self[index] : nil }
 }

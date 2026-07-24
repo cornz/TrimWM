@@ -146,9 +146,8 @@ struct NiriLayout: Equatable, Sendable {
         let neighbourRow = position.row + (direction == .up ? -1 : 1)
         guard columns[position.column].windows.indices.contains(neighbourRow) else { return }
         let neighbour = columns[position.column].windows[neighbourRow]
-        let equal = 1 / CGFloat(columns[position.column].windows.count)
-        let current = rowFractions[window] ?? equal
-        let adjacent = rowFractions[neighbour] ?? equal
+        let current = rowFractions[window]!
+        let adjacent = rowFractions[neighbour]!
         let minimum: CGFloat = 0.05
         let delta = min(max(pixels / viewportHeight, minimum - current), adjacent - minimum)
         guard abs(delta) > 0.0001 else { return }
@@ -164,7 +163,7 @@ struct NiriLayout: Equatable, Sendable {
         guard let column = focused.flatMap(columnIndex(containing:)) else { return }
         let width = max(0, bounds.width - 2 * max(0, gaps.outer))
         let metrics = columnMetrics(viewportWidth: width, innerGap: gaps.inner, minimumSizes: minimumSizes)
-        let contentWidth = metrics.last.map { $0.minX + $0.width } ?? 0
+        let contentWidth = metrics.last!.minX + metrics.last!.width
         viewportOffset = Self.clampViewportOffset(
             metrics[column].minX + metrics[column].width / 2 - width / 2,
             viewportWidth: width,
@@ -188,7 +187,7 @@ struct NiriLayout: Equatable, Sendable {
         let right = left + metric.width
         if left < 0 { viewportOffset = metric.minX }
         if right > width { viewportOffset = metric.minX + metric.width - width }
-        let contentWidth = metrics.last.map { $0.minX + $0.width } ?? 0
+        let contentWidth = metrics.last!.minX + metrics.last!.width
         viewportOffset = Self.clampViewportOffset(
             viewportOffset,
             viewportWidth: width,
@@ -231,7 +230,7 @@ struct NiriLayout: Equatable, Sendable {
             let heights = Self.distributedLengths(
                 total: max(0, usable.height - totalGap),
                 minimums: column.windows.map { minimumSizes[$0]?.height ?? 1 },
-                weights: column.windows.map { rowFractions[$0] ?? 1 }
+                weights: column.windows.map { rowFractions[$0]! }
             )
             var y = usable.minY
             for (row, window) in column.windows.enumerated() {
@@ -273,7 +272,7 @@ struct NiriLayout: Equatable, Sendable {
     ) -> [(minX: CGFloat, width: CGFloat)] {
         var x: CGFloat = 0
         return columns.map { column in
-            let minimum = column.windows.map { minimumSizes[$0]?.width ?? 1 }.max() ?? 1
+            let minimum = column.windows.map { minimumSizes[$0]?.width ?? 1 }.max()!
             let width = max(floor(viewportWidth * column.width), minimum)
             defer { x += width + max(0, innerGap) }
             return (x, width)

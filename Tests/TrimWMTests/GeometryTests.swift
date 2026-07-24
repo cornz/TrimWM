@@ -41,6 +41,17 @@ final class GeometryTests: XCTestCase {
         XCTAssertFalse(Geometry.isMeaningfullyVisible(hiddenMini, in: left))
     }
 
+    func testSideHidingFallsBackToMainDisplayWhenInventoryIsEmpty() {
+        let bounds = CGRect(x: 100, y: 20, width: 1000, height: 700)
+        let window = CGRect(x: 300, y: 40, width: 500, height: 400)
+        let hidden = Geometry.sideHiddenFrame(
+            window,
+            mainBounds: bounds,
+            displayBounds: []
+        )
+        XCTAssertEqual(hidden.maxX, bounds.minX + 1)
+    }
+
     func testMeaningfulVisibilityIgnoresParkingEpsilonButKeepsPartialColumns() {
         let bounds = CGRect(x: 0, y: 0, width: 1000, height: 700)
         XCTAssertFalse(Geometry.isMeaningfullyVisible(CGRect(x: -499, y: 0, width: 500, height: 700), in: bounds))

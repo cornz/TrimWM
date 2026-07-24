@@ -104,6 +104,30 @@ final class ConfigTests: XCTestCase {
         XCTAssertThrowsError(try ConfigValidator.validate(try ConfigParser.parse("workspace-count 9")))
     }
 
+    func testValidationRejectsOutOfRangeRulesAndMoveTargets() {
+        var config = WMConfig()
+        config.rules = [AppRule(bundleID: "com.example.app", workspace: 11)]
+        XCTAssertThrowsError(try ConfigValidator.validate(config))
+
+        config.rules = []
+        config.bindings["default"] = [
+            Binding(chord: "alt+1", command: .moveToWorkspace(11, follow: false)),
+        ]
+        XCTAssertThrowsError(try ConfigValidator.validate(config))
+    }
+
+    func testVariablesExpandLongestNamesFirst() throws {
+        let config = try ConfigParser.parse("""
+        set $mod alt
+        set $m ctrl
+        bindsym $mod+j nop
+        """)
+        XCTAssertEqual(
+            config.bindings["default"],
+            [Binding(chord: "alt+j", command: .nop)]
+        )
+    }
+
     func testRejectsMalformedModesQuotesAndCommandArguments() {
         for source in [
             "}",

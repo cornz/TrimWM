@@ -77,6 +77,49 @@ final class BSPLayoutTests: XCTestCase {
         XCTAssertEqual(layout.frames(in: wide, gaps: gaps)[token(2)]?.minX, 0)
     }
 
+    func testFocusNextHandlesEmptySequentialAndWrappedFocus() {
+        var layout = BSPLayout()
+        layout.focusNext()
+        XCTAssertNil(layout.focused)
+
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        layout.focus(token(1))
+        layout.focusNext()
+        XCTAssertEqual(layout.focused, token(2))
+        layout.focusNext()
+        XCTAssertEqual(layout.focused, token(1))
+    }
+
+    func testResizeFindsFocusedWindowInsideSecondNestedBranch() {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1)
+        layout.focus(token(3))
+
+        layout.resize(axis: .vertical, delta: 0.1)
+
+        let frames = layout.frames(in: wide, gaps: gaps)
+        XCTAssertEqual(frames[token(2)]?.height, 240)
+        XCTAssertEqual(frames[token(3)]?.height, 360)
+    }
+
+    func testResizeFindsFocusedWindowInsideFirstNestedBranch() {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        layout.focus(token(1))
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1)
+        layout.focus(token(3))
+
+        layout.resize(axis: .vertical, delta: 0.1)
+
+        let frames = layout.frames(in: wide, gaps: gaps)
+        XCTAssertEqual(frames[token(1)]?.height, 240)
+        XCTAssertEqual(frames[token(3)]?.height, 360)
+    }
+
     func testMouseSwapExchangesWindowSlotsWithoutChangingTree() {
         var layout = BSPLayout()
         layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1.1)
@@ -172,6 +215,45 @@ final class BSPLayoutTests: XCTestCase {
                 XCTAssertTrue(intersection.isNull || intersection.width == 0 || intersection.height == 0)
             }
         }
+    }
+
+    func testReflowUsesDefaultMinimumsForUnspecifiedWindows() {
+        let windows = (1...5).map { token(CGWindowID($0)) }
+        let bounds = CGRect(x: 0, y: 0, width: 1920, height: 972)
+        var layout = BSPLayout()
+        for window in windows {
+            layout.nextSplit = .vertical
+            layout.insert(window, in: bounds, gaps: gaps, splitRatio: 1)
+        }
+        let minimums = [
+            windows[1]: CGSize(width: 574, height: 1),
+            windows[2]: CGSize(width: 740, height: 486),
+            windows[3]: CGSize(width: 600, height: 400),
+            windows[4]: CGSize(width: 715, height: 252),
+        ]
+
+        XCTAssertTrue(layout.reflowToFit(
+            in: bounds,
+            gaps: gaps,
+            minimumSizes: minimums
+        ))
+    }
+
+    func testReflowReturnsFalseWhenNoArrangementCanMeetMinimums() {
+        let bounds = CGRect(x: 0, y: 0, width: 500, height: 500)
+        var layout = BSPLayout()
+        layout.insert(token(1), in: bounds, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: bounds, gaps: gaps, splitRatio: 1)
+        let impossible = [
+            token(1): CGSize(width: 600, height: 600),
+            token(2): CGSize(width: 600, height: 600),
+        ]
+
+        XCTAssertFalse(layout.reflowToFit(
+            in: bounds,
+            gaps: gaps,
+            minimumSizes: impossible
+        ))
     }
 }
 
