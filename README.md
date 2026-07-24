@@ -8,6 +8,10 @@ session restore, network access, external packages, or settings window.
 > **Status:** local release candidate. The project uses Accessibility and a
 > few dynamically resolved private SkyLight symbols. Private macOS APIs can
 > change between OS releases.
+>
+> Official releases are signed with a Developer ID, use the hardened runtime,
+> and are notarized by Apple. The notarization ticket is stapled to the app so
+> Gatekeeper can verify it without relying on a live notarization lookup.
 
 ## Requirements
 
@@ -45,12 +49,12 @@ brackets mark the active one; `T`, `N`, and `F` mean Tiling, Niri, and
 WM-fullscreen.
 
 The distributed Release app is signed with a Developer ID Application
-certificate and hardened runtime. Replacing `/Applications/TrimWM.app` with
-another build signed by the same certificate preserves its Accessibility
-identity. Grant access only to that installed app. Xcode, `xctest`, Terminal,
-and copies below `.build` do not need Accessibility access and their prompts
-can be declined. A different signing certificate is a different identity and
-requires one fresh grant.
+certificate, uses the hardened runtime, and is notarized and stapled.
+Replacing `/Applications/TrimWM.app` with another build signed by the same
+certificate preserves its Accessibility identity. Grant access only to that
+installed app. Xcode, `xctest`, Terminal, and copies below `.build` do not need
+Accessibility access and their prompts can be declined. A different signing
+certificate is a different identity and requires one fresh grant.
 
 ## Configuration
 
