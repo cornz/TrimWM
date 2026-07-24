@@ -39,6 +39,7 @@ enum CommandTargetResolver {
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
     var onFocusFrame: ((CGRect?) -> Void)?
+    var onBorderStyle: ((BorderStyle) -> Void)?
     private(set) var isEnabled = false
 
     private let windowSystem = WindowSystem()
@@ -145,6 +146,7 @@ final class WMController {
             }
             if isEnabled { try hotKeys.register(parsed.bindings["default"] ?? []) }
             config = parsed
+            onBorderStyle?(config.border)
             mode = "default"
             lastError = nil
             if isEnabled, !mouse.start(focusesOnMove: config.focusFollowsMouse) {
@@ -560,6 +562,9 @@ final class WMController {
     autotile split-ratio 1.0
     focus-follows-mouse true
     start-at-login true
+    border color accent
+    border width 2
+    border radius 9
     bindsym $mod+j focus left
     bindsym $mod+k focus down
     bindsym $mod+l focus up

@@ -28,6 +28,9 @@ final class ConfigTests: XCTestCase {
         autotile split-ratio 1.1
         focus-follows-mouse true
         start-at-login false
+        border color 0x3366CC80
+        border width 3
+        border radius 12
         bindsym $mod+j focus left
         mode resize {
             bindsym h resize left -50
@@ -39,6 +42,7 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.gaps, .init(inner: 4, outer: 8))
         XCTAssertEqual(config.splitRatio, 1.1)
         XCTAssertFalse(config.startAtLogin)
+        XCTAssertEqual(config.border, BorderStyle(color: .rgba(0x33, 0x66, 0xcc, 0x80), width: 3, radius: 12))
         XCTAssertEqual(config.bindings["default"]?.first, Binding(chord: "alt+j", command: .focus(.left)))
         XCTAssertEqual(config.bindings["resize"]?.count, 2)
         XCTAssertEqual(config.rules, [AppRule(bundleID: "com.apple.Safari", workspace: 1, floating: false)])
@@ -81,6 +85,7 @@ final class ConfigTests: XCTestCase {
         }
         XCTAssertEqual(config.workspaceCount, 10)
         XCTAssertTrue(config.focusFollowsMouse)
+        XCTAssertEqual(config.border, BorderStyle(color: .accent, width: 2, radius: 9))
     }
 
     func testValidationRejectsDuplicateChordsMissingModesAndOutOfRangeWorkspaces() throws {
@@ -109,9 +114,20 @@ final class ConfigTests: XCTestCase {
             "bindsym alt+x set-column-width 33",
             "bindsym alt+x fullscreen now",
             "bindsym alt+x exec",
+            "border color blue",
+            "border color 0x12345",
+            "border width -1",
+            "border radius nan",
+            "border opacity 1",
         ] {
             XCTAssertThrowsError(try ConfigParser.parse(source), source)
         }
+    }
+
+    func testBorderColorsAcceptAccentRGBAndRGBA() throws {
+        XCTAssertEqual(try ConfigParser.parse("border color accent").border.color, .accent)
+        XCTAssertEqual(try ConfigParser.parse("border color A1B2C3").border.color, .rgba(0xa1, 0xb2, 0xc3, 0xff))
+        XCTAssertEqual(try ConfigParser.parse("border color \"#01020304\"").border.color, .rgba(1, 2, 3, 4))
     }
 
     func testRuleMergingUsesCaseInsensitiveExactBundleIDs() throws {

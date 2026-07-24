@@ -7,6 +7,9 @@ gaps outer 0
 autotile split-ratio 1.0
 focus-follows-mouse true
 start-at-login true
+border color accent
+border width 2
+border radius 9
 
 bindsym $mod+j focus left
 bindsym $mod+k focus down

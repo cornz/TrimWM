@@ -24,12 +24,24 @@ struct AppRule: Equatable, Sendable {
     var floating: Bool?
 }
 
+enum BorderColor: Equatable, Sendable {
+    case accent
+    case rgba(UInt8, UInt8, UInt8, UInt8)
+}
+
+struct BorderStyle: Equatable, Sendable {
+    var color: BorderColor = .accent
+    var width: CGFloat = 2
+    var radius: CGFloat = 9
+}
+
 struct WMConfig: Equatable, Sendable {
     var workspaceCount = 10
     var gaps = LayoutGaps()
     var splitRatio: CGFloat = 1.0
     var focusFollowsMouse = true
     var startAtLogin = true
+    var border = BorderStyle()
     var bindings: [String: [Binding]] = ["default": []]
     var rules: [AppRule] = []
 }
@@ -132,6 +144,24 @@ enum ConfigParser {
                 config.focusFollowsMouse = try boolean(fields, line: number)
             case "start-at-login":
                 config.startAtLogin = try boolean(fields, line: number)
+            case "border":
+                guard fields.count == 3 else { throw ConfigError.line(number, "expected border color, width, or radius") }
+                switch fields[1] {
+                case "color":
+                    config.border.color = try borderColor(fields[2], line: number)
+                case "width":
+                    guard let value = Double(fields[2]), value.isFinite, value >= 0 else {
+                        throw ConfigError.line(number, "invalid border width")
+                    }
+                    config.border.width = value
+                case "radius":
+                    guard let value = Double(fields[2]), value.isFinite, value >= 0 else {
+                        throw ConfigError.line(number, "invalid border radius")
+                    }
+                    config.border.radius = value
+                default:
+                    throw ConfigError.line(number, "border must configure color, width, or radius")
+                }
             case "bindsym":
                 guard fields.count >= 3 else { throw ConfigError.line(number, "binding needs chord and command") }
                 let commandText = fields.dropFirst(2).joined(separator: " ")
@@ -191,6 +221,19 @@ enum ConfigParser {
     private static func boolean(_ fields: [String], line: Int) throws -> Bool {
         guard fields.count == 2, fields[1] == "true" || fields[1] == "false" else { throw ConfigError.line(line, "expected true or false") }
         return fields[1] == "true"
+    }
+
+    private static func borderColor(_ raw: String, line: Int) throws -> BorderColor {
+        if raw.caseInsensitiveCompare("accent") == .orderedSame { return .accent }
+        var hex = raw
+        if hex.hasPrefix("#") { hex.removeFirst() }
+        else if hex.lowercased().hasPrefix("0x") { hex.removeFirst(2) }
+        guard (hex.count == 6 || hex.count == 8), let value = UInt32(hex, radix: 16) else {
+            throw ConfigError.line(line, "border color must be accent, RRGGBB, or RRGGBBAA")
+        }
+        let alpha: UInt8 = hex.count == 8 ? UInt8(value & 0xff) : 0xff
+        let rgb = hex.count == 8 ? value >> 8 : value
+        return .rgba(UInt8(rgb >> 16), UInt8((rgb >> 8) & 0xff), UInt8(rgb & 0xff), alpha)
     }
 
     private static func bundleID(in line: String, line number: Int) throws -> String {

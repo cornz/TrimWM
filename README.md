@@ -58,10 +58,10 @@ The config path is `~/.config/cornzwm/config`. If it is absent, cornzWM uses
 the built-in default. [Examples/config](Examples/config) contains the complete
 shipped configuration and migrated app rules.
 
-The parser deliberately supports only variables, gaps, split ratio, mouse
-focus, login launch, bindings and modes, exact bundle-ID assignments, and
-floating rules. Reload is transactional; an invalid file leaves the previous
-configuration active and displays the error in the menu.
+The parser deliberately supports only variables, gaps, split ratio, border
+style, mouse focus, login launch, bindings and modes, exact bundle-ID
+assignments, and floating rules. Reload is transactional; an invalid file
+leaves the previous configuration active and displays the error in the menu.
 
 Default highlights:
 
@@ -90,7 +90,19 @@ chosen direction.
 when the pointer crosses its boundary. It has no delay and never moves the
 pointer. Activating an app through Command-Tab follows its focused window to
 the corresponding cornzWM workspace. The focused managed window has a thin,
-click-through accent-color border.
+click-through border. Configure it in points and with either the macOS accent
+color or an RGB/RGBA hex value:
+
+```text
+border color accent
+# Alternatives: border color 0x0A84FF
+#               border color 0x0A84FFFF
+border width 2
+border radius 9
+```
+
+Only one `border color` line is needed. A width of `0` hides the border.
+`Option+Shift+C` reloads all three values immediately.
 
 ## Recovery and removal
 

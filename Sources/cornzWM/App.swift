@@ -14,6 +14,9 @@ enum FocusBorderGeometry {
 @MainActor
 final class FocusBorder {
     private let panel: NSPanel
+    private let content: NSView
+    private var style = BorderStyle()
+    private var targetFrame: CGRect?
     private var displayedFrame: CGRect?
 
     init() {
@@ -31,29 +34,53 @@ final class FocusBorder {
         panel.isReleasedWhenClosed = false
         panel.level = .floating
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        let content = NSView(frame: .zero)
+        content = NSView(frame: .zero)
         content.wantsLayer = true
-        content.layer?.borderColor = NSColor.controlAccentColor.cgColor
-        content.layer?.borderWidth = 2
-        content.layer?.cornerRadius = 5
         panel.contentView = content
+        apply(style)
+    }
+
+    func apply(_ style: BorderStyle) {
+        self.style = style
+        content.layer?.borderColor = style.color.nsColor.cgColor
+        content.layer?.borderWidth = style.width
+        content.layer?.cornerRadius = style.radius
+        update(targetFrame)
     }
 
     func update(_ frame: CGRect?) {
+        targetFrame = frame
         guard let frame,
+              style.width > 0,
               let screen = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main
         else {
             displayedFrame = nil
             panel.orderOut(nil)
             return
         }
-        let expanded = frame.insetBy(dx: -2, dy: -2)
+        let expanded = frame.insetBy(dx: -style.width, dy: -style.width)
         let display = FocusBorderGeometry.appKitFrame(expanded, screenFrame: screen.frame)
         if displayedFrame != display {
             panel.setFrame(display, display: true, animate: false)
             displayedFrame = display
         }
         if !panel.isVisible { panel.orderFrontRegardless() }
+    }
+}
+
+private extension BorderColor {
+    var nsColor: NSColor {
+        switch self {
+        case .accent:
+            NSColor.controlAccentColor
+        case let .rgba(red, green, blue, alpha):
+            NSColor(
+                srgbRed: CGFloat(red) / 255,
+                green: CGFloat(green) / 255,
+                blue: CGFloat(blue) / 255,
+                alpha: CGFloat(alpha) / 255
+            )
+        }
     }
 }
 
@@ -88,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = WMController()
         controller.onStatus = { [weak self] status, error in self?.updateMenu(status: status, error: error) }
         controller.onFocusFrame = { [weak self] frame in self?.focusBorder.update(frame) }
+        controller.onBorderStyle = { [weak self] style in self?.focusBorder.apply(style) }
         self.controller = controller
         updateMenu(status: "Starting", error: nil)
         controller.start()
