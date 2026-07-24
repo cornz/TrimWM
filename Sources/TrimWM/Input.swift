@@ -318,11 +318,17 @@ final class MouseFocusMonitor: @unchecked Sendable {
             if let (window, target) = move { onColumnMove?(window, target) }
             return lock.withLock { columnDrag != nil }
         case .leftMouseUp:
-            return lock.withLock {
-                let wasDragging = columnDrag != nil
-                columnDrag = nil
-                return wasDragging
+            let result = lock.withLock { () -> (handled: Bool, move: (WindowToken, WindowToken)?) in
+                guard let active = columnDrag else { return (false, nil) }
+                defer { columnDrag = nil }
+                guard let target = state.columnDragTarget(at: event.location),
+                      target != active.window,
+                      target != active.lastTarget
+                else { return (true, nil) }
+                return (true, (active.window, target))
             }
+            if let (window, target) = result.move { onColumnMove?(window, target) }
+            return result.handled
         case .rightMouseDown:
             guard event.flags.contains(.maskAlternate) else { return false }
             let target = lock.withLock { () -> WindowToken? in

@@ -170,6 +170,7 @@ final class InputTests: XCTestCase {
             type: .leftMouseUp,
             event: try mouseEvent(.leftMouseUp, at: CGPoint(x: 750, y: 100), alternate: true)
         ))
+        XCTAssertEqual(recorder.moves, [MouseMove(source: source, target: target)])
 
         XCTAssertFalse(monitor.handle(
             type: .rightMouseDown,
@@ -198,6 +199,29 @@ final class InputTests: XCTestCase {
             event: try mouseEvent(.mouseMoved, at: CGPoint(x: 600, y: 100))
         ))
         XCTAssertEqual(recorder.focused, [source, source, source])
+    }
+
+    func testColumnDragDropsOnMouseUpWhenNoDragEventReachedTheTargetMidpoint() throws {
+        let source = WindowToken(pid: 1, id: 1)
+        let target = WindowToken(pid: 2, id: 2)
+        let recorder = MouseEventRecorder()
+        let monitor = MouseFocusMonitor()
+        monitor.onColumnMove = { recorder.recordMove($0, $1) }
+        monitor.update([
+            source: CGRect(x: 0, y: 0, width: 500, height: 600),
+            target: CGRect(x: 500, y: 0, width: 500, height: 600),
+        ], frontToBack: [], columnDraggable: [source, target])
+
+        XCTAssertTrue(monitor.handle(
+            type: .leftMouseDown,
+            event: try mouseEvent(.leftMouseDown, at: CGPoint(x: 100, y: 100), alternate: true)
+        ))
+        XCTAssertTrue(monitor.handle(
+            type: .leftMouseUp,
+            event: try mouseEvent(.leftMouseUp, at: CGPoint(x: 600, y: 100), alternate: true)
+        ))
+
+        XCTAssertEqual(recorder.moves, [MouseMove(source: source, target: target)])
     }
 
     private func mouseEvent(
