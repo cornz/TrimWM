@@ -248,4 +248,36 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertNil(cache.value(for: window))
     }
 
+    func testFrameConstraintCacheResetForgetsAllWindows() {
+        let first = WindowToken(pid: 4, id: 5)
+        let second = WindowToken(pid: 6, id: 7)
+        var cache = FrameConstraintCache()
+        XCTAssertTrue(cache.learn(CGSize(width: 500, height: 400), for: first))
+        XCTAssertTrue(cache.learn(CGSize(width: 600, height: 300), for: second))
+
+        cache.reset()
+
+        XCTAssertNil(cache.value(for: first))
+        XCTAssertNil(cache.value(for: second))
+    }
+
+    func testFrameLedgerResetAndUnknownCompletionAreNoOps() {
+        let window = WindowToken(pid: 4, id: 5)
+        let target = CGRect(x: 10, y: 20, width: 500, height: 400)
+        var ledger = FrameLedger()
+        XCTAssertEqual(
+            ledger.completed(
+                target,
+                for: window,
+                result: AXFrameWriteResult(observed: target, succeeded: true)
+            ),
+            .none
+        )
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+
+        ledger.reset()
+
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+    }
+
 }

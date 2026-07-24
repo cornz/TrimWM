@@ -277,7 +277,7 @@ final class MouseFocusMonitor: @unchecked Sendable {
         }
     }
 
-    fileprivate func handle(type: CGEventType, event: CGEvent) -> Bool {
+    func handle(type: CGEventType, event: CGEvent) -> Bool {
         switch type {
         case .mouseMoved:
             let target = lock.withLock { focusesOnMove ? state.moved(to: event.location) : nil }

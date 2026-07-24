@@ -31,6 +31,7 @@
 		A00000000000000000000119 /* SkyLightTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000029 /* SkyLightTests.swift */; };
 		A0000000000000000000011A /* EventQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002A /* EventQueueTests.swift */; };
 		A0000000000000000000011B /* PerformanceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002B /* PerformanceTests.swift */; };
+		A0000000000000000000011C /* ControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000002C /* ControllerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 		A00000000000000000000029 /* SkyLightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyLightTests.swift; sourceTree = "<group>"; };
 		A0000000000000000000002A /* EventQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueueTests.swift; sourceTree = "<group>"; };
 		A0000000000000000000002B /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
+		A0000000000000000000002C /* ControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ControllerTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000031 /* TrimWM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrimWM.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A00000000000000000000032 /* TrimWMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrimWMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -141,6 +143,7 @@
 				A00000000000000000000029 /* SkyLightTests.swift */,
 				A0000000000000000000002A /* EventQueueTests.swift */,
 				A0000000000000000000002B /* PerformanceTests.swift */,
+				A0000000000000000000002C /* ControllerTests.swift */,
 			);
 			path = TrimWMTests;
 			sourceTree = "<group>";
@@ -212,7 +215,7 @@
 		A00000000000000000000412 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A00000000000000000000111, A00000000000000000000112, A00000000000000000000113, A00000000000000000000114, A00000000000000000000115, A00000000000000000000116, A00000000000000000000117, A00000000000000000000118, A00000000000000000000119, A0000000000000000000011A, A0000000000000000000011B);
+			files = (A00000000000000000000111, A00000000000000000000112, A00000000000000000000113, A00000000000000000000114, A00000000000000000000115, A00000000000000000000116, A00000000000000000000117, A00000000000000000000118, A00000000000000000000119, A0000000000000000000011A, A0000000000000000000011B, A0000000000000000000011C);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */

@@ -36,19 +36,100 @@ enum CommandTargetResolver {
 }
 
 @MainActor
+protocol WindowSystemControlling: AnyObject {
+    var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)? { get set }
+    var onFrame: ((WindowToken, CGRect) -> Void)? { get set }
+    var onApplicationActivated: ((pid_t) -> Void)? { get set }
+    var mouseSurfaces: [MouseSurface] { get }
+    func start()
+    func stop()
+    func rescan()
+    func frontmostFocusedWindow() -> WindowToken?
+    func setFrame(
+        _ frame: CGRect,
+        for token: WindowToken,
+        completion: @escaping @Sendable (AXFrameWriteResult) -> Void
+    )
+    func setFrameSync(_ frame: CGRect, for token: WindowToken) -> Bool
+    func focus(_ token: WindowToken)
+    func contains(_ token: WindowToken, bundleID: String) -> Bool
+}
+
+extension WindowSystem: WindowSystemControlling {}
+
+protocol HotKeyControlling: AnyObject {
+    var onCommand: (@Sendable (WMCommand) -> Void)? { get set }
+    func register(_ bindings: [Binding]) throws
+    func unregister()
+}
+
+extension HotKeyManager: HotKeyControlling {}
+
+protocol MouseControlling: AnyObject {
+    var onWindow: (@Sendable (WindowToken) -> Void)? { get set }
+    var onResize: (@Sendable (WindowToken, Direction, CGFloat) -> Void)? { get set }
+    var onColumnMove: (@Sendable (WindowToken, WindowToken) -> Void)? { get set }
+    func start(focusesOnMove: Bool) -> Bool
+    func stop()
+    func update(
+        _ frames: [WindowToken: CGRect],
+        frontToBack: [MouseSurface],
+        columnDraggable: Set<WindowToken>
+    )
+    func targetAfterLayoutChange() -> WindowToken?
+}
+
+extension MouseFocusMonitor: MouseControlling {}
+
+@MainActor
+struct ControllerEnvironment {
+    var isTrusted: () -> Bool
+    var requestTrust: () -> Void
+    var mainScreenBounds: () -> CGRect
+    var displayBounds: () -> [CGRect]
+    var frontmostPID: () -> pid_t?
+    var runShell: (String) throws -> Void
+    var openAccessibilitySettings: () -> Void
+    var terminate: () -> Void
+
+    static var live: ControllerEnvironment {
+        ControllerEnvironment(
+            isTrusted: { WindowSystem.isTrusted },
+            requestTrust: { WindowSystem.requestTrust() },
+            mainScreenBounds: { WindowSystem.mainScreenBounds },
+            displayBounds: { WindowSystem.displayBounds },
+            frontmostPID: { NSWorkspace.shared.frontmostApplication?.processIdentifier },
+            runShell: { command in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/bin/zsh")
+                process.arguments = ["-lc", command]
+                try process.run()
+            },
+            openAccessibilitySettings: {
+                NSWorkspace.shared.open(
+                    URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                )
+            },
+            terminate: { NSApplication.shared.terminate(nil) }
+        )
+    }
+}
+
+@MainActor
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
     var onFocusFrame: ((CGRect?) -> Void)?
     var onBorderStyle: ((BorderStyle) -> Void)?
     private(set) var isEnabled = false
 
-    private let windowSystem = WindowSystem()
-    private let hotKeys = HotKeyManager()
-    private let mouse = MouseFocusMonitor()
+    private let windowSystem: any WindowSystemControlling
+    private let hotKeys: any HotKeyControlling
+    private let mouse: any MouseControlling
     private let events = EventQueue()
     private let logger = Logger(subsystem: "de.cornz.TrimWM", category: "runtime")
+    private let environment: ControllerEnvironment
     private var config: WMConfig
-    private var world = World()
+    private(set) var world = World()
     private var native: [WindowToken: AXWindowSnapshot] = [:]
     private var frameConstraints = FrameConstraintCache()
     private var ledger = FrameLedger()
@@ -58,19 +139,42 @@ final class WMController {
     private var lastError: String?
     private var published: (status: String, error: String?)?
 
-    private let configURL = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: ".config/trimwm/config")
+    private let configURL: URL
 
-    init() {
-        config = (try? ConfigParser.parse(Self.defaultConfig)) ?? WMConfig()
+    convenience init() {
         let applicationSupport = FileManager.default.urls(
             for: .applicationSupportDirectory,
             in: .userDomainMask
         )[0]
-        journal = CrashJournal(
-            url: applicationSupport.appending(path: "TrimWM/crash-journal.json"),
-            bootID: Self.bootID()
+        self.init(
+            windowSystem: WindowSystem(),
+            hotKeys: HotKeyManager(),
+            mouse: MouseFocusMonitor(),
+            environment: .live,
+            configURL: FileManager.default.homeDirectoryForCurrentUser
+                .appending(path: ".config/trimwm/config"),
+            journal: CrashJournal(
+                url: applicationSupport.appending(path: "TrimWM/crash-journal.json"),
+                bootID: Self.bootID()
+            )
         )
+    }
+
+    init(
+        windowSystem: any WindowSystemControlling,
+        hotKeys: any HotKeyControlling,
+        mouse: any MouseControlling,
+        environment: ControllerEnvironment,
+        configURL: URL,
+        journal: CrashJournal
+    ) {
+        self.windowSystem = windowSystem
+        self.hotKeys = hotKeys
+        self.mouse = mouse
+        self.environment = environment
+        self.configURL = configURL
+        config = (try? ConfigParser.parse(Self.defaultConfig)) ?? WMConfig()
+        self.journal = journal
 
         hotKeys.onCommand = { [weak self] command in
             self?.events.push(.command(command))
@@ -87,22 +191,22 @@ final class WMController {
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
-        events.onDrain = { [weak self] pending in self?.drain(pending) }
+        events.onDrain = { [weak self] pending in self?.handle(pending) }
     }
 
     func start() {
         reload()
-        if WindowSystem.isTrusted { enable() }
+        if environment.isTrusted() { enable() }
         else {
-            WindowSystem.requestTrust()
+            environment.requestTrust()
             publish(error: "Accessibility access is required; grant it, then choose Enable.")
         }
     }
 
     func enable() {
         guard !isEnabled else { return }
-        guard WindowSystem.isTrusted else {
-            WindowSystem.requestTrust()
+        guard environment.isTrusted() else {
+            environment.requestTrust()
             publish(error: "Accessibility access is not granted yet.")
             return
         }
@@ -136,7 +240,7 @@ final class WMController {
     func quit() {
         disable()
         windowSystem.stop()
-        NSApplication.shared.terminate(nil)
+        environment.terminate()
     }
 
     func reload() {
@@ -166,10 +270,10 @@ final class WMController {
     }
 
     func openAccessibilitySettings() {
-        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+        environment.openAccessibilitySettings()
     }
 
-    private func drain(_ pending: [WMEvent]) {
+    func handle(_ pending: [WMEvent]) {
         for event in pending {
             switch event {
             case let .windows(pid, windows): accept(pid: pid, windows: windows)
@@ -198,7 +302,7 @@ final class WMController {
         guard isEnabled, let snapshot = native[window] else { return }
         snapshot.frame = frame
         ledger.observed(frame, for: window)
-        let bounds = WindowSystem.mainScreenBounds
+        let bounds = environment.mainScreenBounds()
         let isManaged = world.workspace(of: window) != nil
         if Geometry.shouldReconcileRestoredWindow(
             isManaged: isManaged,
@@ -231,7 +335,7 @@ final class WMController {
             ledger.remove(token)
         }
 
-        let bounds = WindowSystem.mainScreenBounds
+        let bounds = environment.mainScreenBounds()
         for window in windows {
             native[window.token] = window
             if world.workspace(of: window.token) == nil {
@@ -254,7 +358,7 @@ final class WMController {
             }
             ledger.observed(window.frame, for: window.token)
         }
-        if NSWorkspace.shared.frontmostApplication?.processIdentifier == pid,
+        if environment.frontmostPID() == pid,
            let focused = windows.first(where: \.isFocused),
            world.workspace(of: focused.token) != nil {
             world.focus(
@@ -275,7 +379,7 @@ final class WMController {
 
     private func applyLayout() {
         guard isEnabled else { return }
-        let bounds = WindowSystem.mainScreenBounds
+        let bounds = environment.mainScreenBounds()
         let minimumSizes = self.minimumSizes
         world.reflowVisibleToFit(bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
         let desired = world.visibleFrames(bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
@@ -293,7 +397,11 @@ final class WMController {
                 if journal.entries[token] == nil, Geometry.isMeaningfullyVisible(window.frame, in: bounds) {
                     toJournal.append(JournalEntry(bootID: journal.bootID, token: token, bundleID: window.bundleID, frame: window.frame))
                 }
-                let hidden = Geometry.sideHiddenFrame(window.frame, mainBounds: bounds, displayBounds: WindowSystem.displayBounds)
+                let hidden = Geometry.sideHiddenFrame(
+                    window.frame,
+                    mainBounds: bounds,
+                    displayBounds: environment.displayBounds()
+                )
                 hiddenWrites.append((token, hidden))
             }
         }
@@ -325,7 +433,7 @@ final class WMController {
 
     private func publishFocusFrame(_ desired: [WindowToken: CGRect], bounds: CGRect) {
         guard let window = world.visible.focused,
-              window.pid == NSWorkspace.shared.frontmostApplication?.processIdentifier,
+              window.pid == environment.frontmostPID(),
               native[window]?.isOnCurrentSpace == true,
               let frame = desired[window],
               frame.intersects(bounds)
@@ -336,10 +444,10 @@ final class WMController {
         onFocusFrame?(frame)
     }
 
-    private func execute(_ command: WMCommand) {
+    func execute(_ command: WMCommand) {
         if command == .reload { reload(); return }
         guard isEnabled else { return }
-        let bounds = WindowSystem.mainScreenBounds
+        let bounds = environment.mainScreenBounds()
         switch command {
         case let .focus(direction):
             world.focus(direction, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
@@ -430,10 +538,8 @@ final class WMController {
             catch { lastError = String(describing: error) }
             publish()
         case let .execute(shellCommand):
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/bin/zsh")
-            process.arguments = ["-lc", shellCommand]
-            do { try process.run() } catch { lastError = String(describing: error); publish() }
+            do { try environment.runShell(shellCommand) }
+            catch { lastError = String(describing: error); publish() }
         case .reload, .nop: break
         }
     }
@@ -445,7 +551,7 @@ final class WMController {
 
     private func commandWindow() -> WindowToken? {
         CommandTargetResolver.resolve(
-            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+            frontmostPID: environment.frontmostPID(),
             nativelyFocused: native.values.filter(\.isFocused).map(\.token),
             world: world
         )
@@ -454,7 +560,7 @@ final class WMController {
     private func liveCommandWindow() -> WindowToken? {
         CommandTargetResolver.resolve(
             liveFocused: windowSystem.frontmostFocusedWindow(),
-            frontmostPID: NSWorkspace.shared.frontmostApplication?.processIdentifier,
+            frontmostPID: environment.frontmostPID(),
             nativelyFocused: native.values.filter(\.isFocused).map(\.token),
             world: world
         )
@@ -464,7 +570,7 @@ final class WMController {
         guard let window = liveCommandWindow(), world.workspace(of: window) == world.visibleWorkspace else { return }
         world.focusIfVisible(
             window,
-            bounds: WindowSystem.mainScreenBounds,
+            bounds: environment.mainScreenBounds(),
             gaps: config.gaps,
             minimumSizes: minimumSizes
         )
@@ -490,7 +596,7 @@ final class WMController {
         guard isEnabled, world.workspace(of: window) == world.visibleWorkspace else { return }
         world.focusIfVisible(
             window,
-            bounds: WindowSystem.mainScreenBounds,
+            bounds: environment.mainScreenBounds(),
             gaps: config.gaps,
             minimumSizes: minimumSizes
         )
@@ -500,7 +606,7 @@ final class WMController {
 
     private func resizeFromMouse(_ window: WindowToken, direction: Direction, pixels: CGFloat) {
         guard isEnabled, world.workspace(of: window) == world.visibleWorkspace else { return }
-        let bounds = WindowSystem.mainScreenBounds
+        let bounds = environment.mainScreenBounds()
         world.focusIfVisible(window, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
         world.resizeFocused(direction, pixels: pixels, bounds: bounds)
         applyLayout()
@@ -514,7 +620,7 @@ final class WMController {
         world.moveTiledItem(
             containing: window,
             to: target,
-            bounds: WindowSystem.mainScreenBounds,
+            bounds: environment.mainScreenBounds(),
             gaps: config.gaps,
             minimumSizes: minimumSizes
         )
