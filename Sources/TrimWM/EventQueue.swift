@@ -8,6 +8,7 @@ enum WMEvent: Sendable {
     case mouse(WindowToken)
     case mouseResize(WindowToken, Direction, CGFloat)
     case mouseColumnMove(WindowToken, WindowToken)
+    case mouseColumnDragFeedback(MouseColumnDragFeedback)
     case frameWriteResult(WindowToken, CGRect, AXFrameWriteResult)
 }
 
@@ -39,6 +40,13 @@ struct EventBuffer {
             }) {
                 events[index] = event
             } else { events.append(event) }
+        case .mouseColumnDragFeedback:
+            if let last = events.indices.last,
+               case .mouseColumnDragFeedback = events[last] {
+                events[last] = event
+            } else {
+                events.append(event)
+            }
         case .command, .mouseColumnMove, .frameWriteResult:
             events.append(event)
         }

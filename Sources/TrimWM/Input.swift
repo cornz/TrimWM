@@ -197,6 +197,11 @@ struct MouseResizeStep: Equatable, Sendable {
     let pixels: CGFloat
 }
 
+enum MouseColumnDragFeedback: Equatable, Sendable {
+    case active(target: WindowToken?)
+    case inactive
+}
+
 enum MouseResizePlanner {
     static func step(for delta: CGPoint) -> MouseResizeStep? {
         guard abs(delta.x) > 0.5 || abs(delta.y) > 0.5 else { return nil }
@@ -226,6 +231,7 @@ final class MouseFocusMonitor: @unchecked Sendable {
     var onWindow: (@Sendable (WindowToken) -> Void)?
     var onResize: (@Sendable (WindowToken, Direction, CGFloat) -> Void)?
     var onColumnMove: (@Sendable (WindowToken, WindowToken) -> Void)?
+    var onColumnDragFeedback: (@Sendable (MouseColumnDragFeedback) -> Void)?
     private let lock = NSLock()
     private var state = MouseTargetState()
     private var resize: (window: WindowToken, point: CGPoint)?
@@ -257,7 +263,12 @@ final class MouseFocusMonitor: @unchecked Sendable {
     func stop() {
         if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
         source = nil; tap = nil
-        lock.withLock { state.reset(); resize = nil; columnDrag = nil }
+        let wasDragging = lock.withLock {
+            let wasDragging = columnDrag != nil
+            state.reset(); resize = nil; columnDrag = nil
+            return wasDragging
+        }
+        if wasDragging { onColumnDragFeedback?(.inactive) }
     }
 
     func update(
@@ -290,17 +301,22 @@ final class MouseFocusMonitor: @unchecked Sendable {
                 columnDrag = (target, nil)
                 return target
             }
-            if let target { onWindow?(target) }
+            if let target {
+                onWindow?(target)
+                onColumnDragFeedback?(.active(target: nil))
+            }
             return target != nil
         case .leftMouseDragged:
-            let move = lock.withLock { () -> (WindowToken, WindowToken)? in
-                guard var active = columnDrag,
-                      let target = state.columnDragTarget(at: event.location)
-                else { return nil }
+            let result = lock.withLock {
+                () -> (move: (WindowToken, WindowToken)?, feedback: MouseColumnDragFeedback?) in
+                guard var active = columnDrag else { return (nil, nil) }
+                guard let target = state.columnDragTarget(at: event.location) else {
+                    return (nil, .active(target: nil))
+                }
                 guard target != active.window else {
                     active.lastTarget = nil
                     columnDrag = active
-                    return nil
+                    return (nil, .active(target: nil))
                 }
                 guard target != active.lastTarget,
                       let sourceFrame = state.frame(of: active.window),
@@ -310,13 +326,14 @@ final class MouseFocusMonitor: @unchecked Sendable {
                         target: targetFrame,
                         pointer: event.location
                       )
-                else { return nil }
+                else { return (nil, .active(target: target)) }
                 active.lastTarget = target
                 columnDrag = active
-                return (active.window, target)
+                return ((active.window, target), .active(target: target))
             }
-            if let (window, target) = move { onColumnMove?(window, target) }
-            return lock.withLock { columnDrag != nil }
+            if let feedback = result.feedback { onColumnDragFeedback?(feedback) }
+            if let (window, target) = result.move { onColumnMove?(window, target) }
+            return result.feedback != nil
         case .leftMouseUp:
             let result = lock.withLock { () -> (handled: Bool, move: (WindowToken, WindowToken)?) in
                 guard let active = columnDrag else { return (false, nil) }
@@ -328,6 +345,7 @@ final class MouseFocusMonitor: @unchecked Sendable {
                 return (true, (active.window, target))
             }
             if let (window, target) = result.move { onColumnMove?(window, target) }
+            if result.handled { onColumnDragFeedback?(.inactive) }
             return result.handled
         case .rightMouseDown:
             guard event.flags.contains(.maskAlternate) else { return false }
@@ -359,6 +377,12 @@ final class MouseFocusMonitor: @unchecked Sendable {
     }
 
     fileprivate func reenable() {
+        let wasDragging = lock.withLock {
+            let wasDragging = columnDrag != nil
+            columnDrag = nil
+            return wasDragging
+        }
+        if wasDragging { onColumnDragFeedback?(.inactive) }
         if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
     }
 }

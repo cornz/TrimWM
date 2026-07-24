@@ -163,6 +163,73 @@ final class ControllerTests: XCTestCase {
         XCTAssertNil(harness.controller.world.workspace(of: second))
     }
 
+    func testColumnDragFeedbackUsesWholeNiriTargetColumnAndClears() {
+        let harness = makeHarness()
+        let first = WindowToken(pid: 55, id: 1)
+        let second = WindowToken(pid: 55, id: 2)
+        let third = WindowToken(pid: 55, id: 3)
+        harness.environment.frontmostPID = 55
+        harness.controller.start()
+        harness.controller.handle([.windows(55, [
+            snapshot(first, x: 0),
+            snapshot(second, x: 400),
+            snapshot(third, x: 800, focused: true),
+        ])])
+        harness.controller.execute(.layout(.niri))
+        harness.windowSystem.liveFocused = third
+        harness.controller.execute(.consume(.left))
+
+        guard case let .niri(layout) = harness.controller.world.visible.layout,
+              let column = layout.columns.first(where: { $0.windows.contains(second) }),
+              let frames = harness.mouse.updates.last?.frames
+        else {
+            return XCTFail("expected a Niri target column")
+        }
+        let targetFrames = column.windows.compactMap { frames[$0] }
+        let expected = targetFrames.dropFirst().reduce(targetFrames[0]) { $0.union($1) }
+        var feedback: [(Bool, CGRect?)] = []
+        harness.controller.onColumnDragFeedback = { feedback.append(($0, $1)) }
+
+        harness.controller.handle([.mouseColumnDragFeedback(.active(target: second))])
+        harness.controller.handle([.mouseColumnDragFeedback(.inactive)])
+
+        XCTAssertEqual(feedback.count, 2)
+        XCTAssertTrue(feedback[0].0)
+        XCTAssertEqual(feedback[0].1, expected)
+        XCTAssertFalse(feedback[1].0)
+        XCTAssertNil(feedback[1].1)
+    }
+
+    func testColumnDragFeedbackUsesBSPTargetAndClearsWhenDisabled() {
+        let harness = makeHarness()
+        let first = WindowToken(pid: 56, id: 1)
+        let second = WindowToken(pid: 56, id: 2)
+        harness.environment.frontmostPID = 56
+        harness.controller.start()
+        harness.controller.handle([.windows(56, [
+            snapshot(first, x: 0, focused: true),
+            snapshot(second, x: 500),
+        ])])
+        let expected = harness.mouse.updates.last?.frames[second]
+        var feedback: [(Bool, CGRect?)] = []
+        harness.controller.onColumnDragFeedback = { feedback.append(($0, $1)) }
+
+        harness.controller.handle([.mouseColumnDragFeedback(.active(target: nil))])
+        harness.controller.handle([.mouseColumnDragFeedback(.active(target: second))])
+        harness.controller.handle([.mouseColumnDragFeedback(.inactive)])
+        harness.controller.disable()
+        harness.controller.handle([.mouseColumnDragFeedback(.active(target: second))])
+
+        XCTAssertEqual(feedback.count, 5)
+        XCTAssertTrue(feedback[0].0)
+        XCTAssertNil(feedback[0].1)
+        XCTAssertTrue(feedback[1].0)
+        XCTAssertEqual(feedback[1].1, expected)
+        XCTAssertFalse(feedback[2].0)
+        XCTAssertFalse(feedback[3].0)
+        XCTAssertFalse(feedback[4].0)
+    }
+
     func testReloadErrorsModesShellAndEnvironmentActionsAreReported() throws {
         let harness = makeHarness()
         var statuses: [(String, String?)] = []
@@ -355,6 +422,7 @@ private final class FakeMouse: MouseControlling {
     var onWindow: (@Sendable (WindowToken) -> Void)?
     var onResize: (@Sendable (WindowToken, Direction, CGFloat) -> Void)?
     var onColumnMove: (@Sendable (WindowToken, WindowToken) -> Void)?
+    var onColumnDragFeedback: (@Sendable (MouseColumnDragFeedback) -> Void)?
     var startResult = true
     var startValues: [Bool] = []
     var stopCount = 0

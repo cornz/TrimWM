@@ -12,6 +12,11 @@ final class GeometryTests: XCTestCase {
         )
     }
 
+    func testDragBorderRemainsVisibleAndScalesConfiguredWidth() {
+        XCTAssertEqual(FocusBorderGeometry.strokeWidth(configured: 0, scale: 2, minimum: 4), 4)
+        XCTAssertEqual(FocusBorderGeometry.strokeWidth(configured: 3, scale: 2, minimum: 4), 6)
+    }
+
     func testNearestRequiresCorrectHalfPlaneAndPrefersAlignedWindow() {
         let source = WindowToken(pid: 1, id: 1)
         let aligned = WindowToken(pid: 1, id: 2)

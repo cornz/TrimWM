@@ -145,6 +145,7 @@ final class InputTests: XCTestCase {
         let monitor = MouseFocusMonitor()
         monitor.onWindow = { recorder.recordFocus($0) }
         monitor.onColumnMove = { recorder.recordMove($0, $1) }
+        monitor.onColumnDragFeedback = { recorder.recordFeedback($0) }
         monitor.onResize = { recorder.recordResize($0, $1, $2) }
         monitor.update([
             source: CGRect(x: 0, y: 0, width: 500, height: 600),
@@ -161,15 +162,18 @@ final class InputTests: XCTestCase {
             type: .leftMouseDown,
             event: try mouseEvent(.leftMouseDown, at: CGPoint(x: 100, y: 100), alternate: true)
         ))
+        XCTAssertEqual(recorder.feedback, [.active(target: nil)])
         XCTAssertTrue(monitor.handle(
             type: .leftMouseDragged,
             event: try mouseEvent(.leftMouseDragged, at: CGPoint(x: 750, y: 100), alternate: true)
         ))
+        XCTAssertEqual(recorder.feedback, [.active(target: nil), .active(target: target)])
         XCTAssertEqual(recorder.moves, [MouseMove(source: source, target: target)])
         XCTAssertTrue(monitor.handle(
             type: .leftMouseUp,
             event: try mouseEvent(.leftMouseUp, at: CGPoint(x: 750, y: 100), alternate: true)
         ))
+        XCTAssertEqual(recorder.feedback, [.active(target: nil), .active(target: target), .inactive])
         XCTAssertEqual(recorder.moves, [MouseMove(source: source, target: target)])
 
         XCTAssertFalse(monitor.handle(
@@ -224,6 +228,39 @@ final class InputTests: XCTestCase {
         XCTAssertEqual(recorder.moves, [MouseMove(source: source, target: target)])
     }
 
+    func testStoppingDuringColumnDragClearsVisualFeedback() throws {
+        let source = WindowToken(pid: 1, id: 1)
+        let recorder = MouseEventRecorder()
+        let monitor = MouseFocusMonitor()
+        monitor.onColumnDragFeedback = { recorder.recordFeedback($0) }
+        monitor.update(
+            [source: CGRect(x: 0, y: 0, width: 500, height: 600)],
+            frontToBack: [],
+            columnDraggable: [source]
+        )
+
+        XCTAssertTrue(monitor.handle(
+            type: .leftMouseDown,
+            event: try mouseEvent(.leftMouseDown, at: CGPoint(x: 100, y: 100), alternate: true)
+        ))
+        XCTAssertTrue(monitor.handle(
+            type: .leftMouseDragged,
+            event: try mouseEvent(.leftMouseDragged, at: CGPoint(x: 110, y: 100), alternate: true)
+        ))
+        XCTAssertTrue(monitor.handle(
+            type: .leftMouseDragged,
+            event: try mouseEvent(.leftMouseDragged, at: CGPoint(x: 800, y: 100), alternate: true)
+        ))
+        monitor.stop()
+
+        XCTAssertEqual(recorder.feedback, [
+            .active(target: nil),
+            .active(target: nil),
+            .active(target: nil),
+            .inactive,
+        ])
+    }
+
     private func mouseEvent(
         _ type: CGEventType,
         at point: CGPoint,
@@ -260,10 +297,12 @@ private final class MouseEventRecorder: @unchecked Sendable {
     private var storedFocused: [WindowToken] = []
     private var storedMoves: [MouseMove] = []
     private var storedResizes: [MouseResize] = []
+    private var storedFeedback: [MouseColumnDragFeedback] = []
 
     var focused: [WindowToken] { lock.withLock { storedFocused } }
     var moves: [MouseMove] { lock.withLock { storedMoves } }
     var resizes: [MouseResize] { lock.withLock { storedResizes } }
+    var feedback: [MouseColumnDragFeedback] { lock.withLock { storedFeedback } }
 
     func recordFocus(_ window: WindowToken) {
         lock.withLock { storedFocused.append(window) }
@@ -277,5 +316,9 @@ private final class MouseEventRecorder: @unchecked Sendable {
         lock.withLock {
             storedResizes.append(MouseResize(window: window, direction: direction, pixels: pixels))
         }
+    }
+
+    func recordFeedback(_ feedback: MouseColumnDragFeedback) {
+        lock.withLock { storedFeedback.append(feedback) }
     }
 }

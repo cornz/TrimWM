@@ -69,6 +69,7 @@ protocol MouseControlling: AnyObject {
     var onWindow: (@Sendable (WindowToken) -> Void)? { get set }
     var onResize: (@Sendable (WindowToken, Direction, CGFloat) -> Void)? { get set }
     var onColumnMove: (@Sendable (WindowToken, WindowToken) -> Void)? { get set }
+    var onColumnDragFeedback: (@Sendable (MouseColumnDragFeedback) -> Void)? { get set }
     func start(focusesOnMove: Bool) -> Bool
     func stop()
     func update(
@@ -119,6 +120,7 @@ struct ControllerEnvironment {
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
     var onFocusFrame: ((CGRect?) -> Void)?
+    var onColumnDragFeedback: ((Bool, CGRect?) -> Void)?
     var onBorderStyle: ((BorderStyle) -> Void)?
     private(set) var isEnabled = false
 
@@ -188,6 +190,9 @@ final class WMController {
         mouse.onColumnMove = { [weak self] window, target in
             self?.events.push(.mouseColumnMove(window, target))
         }
+        mouse.onColumnDragFeedback = { [weak self] feedback in
+            self?.events.push(.mouseColumnDragFeedback(feedback))
+        }
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
@@ -233,6 +238,7 @@ final class WMController {
         hotKeys.unregister()
         mouse.stop()
         onFocusFrame?(nil)
+        onColumnDragFeedback?(false, nil)
         restoreJournal()
         publish()
     }
@@ -282,6 +288,7 @@ final class WMController {
             case let .mouse(window): focusFromMouse(window)
             case let .mouseResize(window, direction, pixels): resizeFromMouse(window, direction: direction, pixels: pixels)
             case let .mouseColumnMove(window, target): moveColumnFromMouse(window, to: target)
+            case let .mouseColumnDragFeedback(feedback): publishColumnDragFeedback(feedback)
             case let .frameWriteResult(window, frame, result):
                 guard isEnabled else { continue }
                 switch ledger.completed(frame, for: window, result: result) {
@@ -625,6 +632,36 @@ final class WMController {
             minimumSizes: minimumSizes
         )
         applyLayout()
+    }
+
+    private func publishColumnDragFeedback(_ feedback: MouseColumnDragFeedback) {
+        guard isEnabled else {
+            onColumnDragFeedback?(false, nil)
+            return
+        }
+        switch feedback {
+        case .inactive:
+            onColumnDragFeedback?(false, nil)
+        case let .active(target):
+            onColumnDragFeedback?(true, target.flatMap(columnDragTargetFrame))
+        }
+    }
+
+    private func columnDragTargetFrame(_ target: WindowToken) -> CGRect? {
+        let frames = world.visibleFrames(
+            bounds: environment.mainScreenBounds(),
+            gaps: config.gaps,
+            minimumSizes: minimumSizes
+        )
+        switch world.visible.layout {
+        case .autotile:
+            return frames[target]
+        case let .niri(layout):
+            guard let column = layout.columns.first(where: { $0.windows.contains(target) }) else { return nil }
+            let columnFrames = column.windows.compactMap { frames[$0] }
+            guard let first = columnFrames.first else { return nil }
+            return columnFrames.dropFirst().reduce(first) { $0.union($1) }
+        }
     }
 
     private var columnDraggableWindows: Set<WindowToken> {

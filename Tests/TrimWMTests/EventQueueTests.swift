@@ -67,6 +67,24 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(frame, latest)
     }
 
+    func testCoalescesConsecutiveColumnDragFeedbackWithoutCrossingMoveEvents() {
+        var buffer = EventBuffer()
+        buffer.insert(.mouseColumnDragFeedback(.active(target: nil)))
+        buffer.insert(.mouseColumnDragFeedback(.active(target: a)))
+        buffer.insert(.mouseColumnMove(a, b))
+        buffer.insert(.mouseColumnDragFeedback(.inactive))
+        let events = buffer.takeAll()
+
+        XCTAssertEqual(events.count, 3)
+        guard case let .mouseColumnDragFeedback(.active(target)) = events[0],
+              case .mouseColumnMove = events[1],
+              case .mouseColumnDragFeedback(.inactive) = events[2]
+        else {
+            return XCTFail("unexpected events")
+        }
+        XCTAssertEqual(target, a)
+    }
+
     @MainActor
     func testQueueSchedulesOneMainActorDrainForBurst() async {
         let queue = EventQueue()
