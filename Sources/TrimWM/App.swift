@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateMenu(status: String, error: String?) {
         statusItem?.button?.title = status
         let menu = NSMenu()
-        let state = NSMenuItem(title: error ?? "TrimWM v2 · \(status)", action: nil, keyEquivalent: "")
+        let state = NSMenuItem(title: error ?? "TrimWM · \(status)", action: nil, keyEquivalent: "")
         state.isEnabled = false
         menu.addItem(state)
         menu.addItem(.separator())

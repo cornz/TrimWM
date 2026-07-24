@@ -1,4 +1,4 @@
-# TrimWM v2
+# TrimWM
 
 TrimWM is a small, local tiling window manager for Apple Silicon Macs running
 macOS 26. It has two layouts: i3-style BSP autotiling and a minimal
@@ -17,7 +17,7 @@ session restore, network access, external packages, or settings window.
 - Accessibility permission for `TrimWM.app`
 - **Displays have separate Spaces** enabled
 
-Version 2 manages normal windows on the main display. It observes but does not
+TrimWM manages normal windows on the main display. It observes but does not
 move windows known to be on inactive native macOS Spaces. Logical TrimWM
 workspaces are independent from native Spaces.
 
@@ -63,10 +63,6 @@ TOML or KDL. The parser supports only variables, gaps, split ratio, border
 style, mouse focus, login launch, bindings and modes, exact bundle-ID
 assignments, and floating rules. Reload is transactional; an invalid file
 leaves the previous configuration active and displays the error in the menu.
-
-When upgrading from cornzWM, quit the old app before starting TrimWM. On first
-launch, TrimWM moves an existing `~/.config/cornzwm/config` and crash journal
-to their new TrimWM locations if the new files do not exist yet.
 
 Default highlights:
 
