@@ -102,6 +102,30 @@ final class WorldTests: XCTestCase {
         XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), tiled)
     }
 
+    func testFullscreenKeepsSameApplicationFloatingOverlaysVisible() {
+        var workspace = WorkspaceState()
+        let fullscreen = WindowToken(pid: 7, id: 1)
+        let overlay = WindowToken(pid: 7, id: 2)
+        let unrelated = WindowToken(pid: 8, id: 3)
+        let overlayFrame = CGRect(x: 200, y: 150, width: 300, height: 240)
+        workspace.add(fullscreen, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(overlay, floating: overlayFrame, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(
+            unrelated,
+            floating: CGRect(x: 50, y: 50, width: 200, height: 200),
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+
+        workspace.fullscreen = fullscreen
+
+        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), [
+            fullscreen: bounds,
+            overlay: overlayFrame,
+        ])
+    }
+
     func testDirectionalFocusMoveAndResizeIncludeFloatingWindows() {
         var world = World(workspaceCount: 1)
         world.add(token(1), to: 1, bounds: bounds, gaps: .init(), splitRatio: 1)
