@@ -40,8 +40,8 @@ open /Applications/TrimWM.app
 
 Grant `/Applications/TrimWM.app` access under **System Settings → Privacy &
 Security → Accessibility**. The menu-bar item changes from `Paused` to a status
-such as `[1N] 2A 5A` when enabled. Every occupied workspace is listed, and
-brackets mark the active one; `A`, `N`, and `F` mean Autotile, Niri, and
+such as `[1N] 2T 5T` when enabled. Every occupied workspace is listed, and
+brackets mark the active one; `T`, `N`, and `F` mean Tiling, Niri, and
 WM-fullscreen.
 
 The distributed Release app is signed with a Developer ID Application

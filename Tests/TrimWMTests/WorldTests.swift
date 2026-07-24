@@ -22,10 +22,10 @@ final class WorldTests: XCTestCase {
         world.add(token(2), to: 2, bounds: bounds, gaps: gaps, splitRatio: 1)
         world.add(token(3), to: 5, bounds: bounds, gaps: gaps, splitRatio: 1)
         world.setFullscreen(token(1), enabled: true)
-        XCTAssertEqual(world.statusText, "[1NF] 2A 5A")
+        XCTAssertEqual(world.statusText, "[1NF] 2T 5T")
 
         world.switchWorkspace(to: 3)
-        XCTAssertEqual(world.statusText, "1NF 2A [3A] 5A")
+        XCTAssertEqual(world.statusText, "1NF 2T [3T] 5T")
     }
 
     func testMoveToWorkspaceCanFollowOrStay() {

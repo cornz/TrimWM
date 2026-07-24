@@ -239,7 +239,7 @@ struct World: Equatable, Sendable {
         workspaces.enumerated().compactMap { index, workspace in
             let number = index + 1
             guard number == visibleWorkspace || !workspace.windows.isEmpty else { return nil }
-            let layout = workspace.layout.mode == .autotile ? "A" : "N"
+            let layout = workspace.layout.mode == .autotile ? "T" : "N"
             let fullscreen = workspace.fullscreen == nil ? "" : "F"
             let label = "\(number)\(layout)\(fullscreen)"
             return number == visibleWorkspace ? "[\(label)]" : label
