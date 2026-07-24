@@ -57,6 +57,20 @@ final class InputTests: XCTestCase {
         XCTAssertEqual(state.moved(to: CGPoint(x: 50, y: 50)), back)
     }
 
+    func testLayoutRefreshTargetsWindowUnderStationaryPointerExactlyOnce() {
+        let old = WindowToken(pid: 1, id: 1)
+        let new = WindowToken(pid: 2, id: 2)
+        let pointer = CGPoint(x: 100, y: 100)
+        var state = MouseTargetState()
+
+        state.update([old: CGRect(x: 0, y: 0, width: 200, height: 200)], frontToBack: [])
+        XCTAssertEqual(state.moved(to: pointer), old)
+
+        state.update([new: CGRect(x: 0, y: 0, width: 200, height: 200)], frontToBack: [])
+        XCTAssertEqual(state.refreshed(at: pointer), new)
+        XCTAssertNil(state.moved(to: CGPoint(x: 101, y: 100)))
+    }
+
     func testUnmanagedFrontSurfaceBlocksManagedWindowUnderMouse() {
         let managed = WindowToken(pid: 1, id: 1)
         let frame = CGRect(x: 0, y: 0, width: 200, height: 200)

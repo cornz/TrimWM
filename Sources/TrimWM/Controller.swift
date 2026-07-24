@@ -351,7 +351,12 @@ final class WMController {
             world.moveFocused(direction, bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
             applyLayout()
         case let .resize(direction, pixels): world.resizeFocused(direction, pixels: pixels, bounds: bounds); applyLayout()
-        case let .workspace(index): world.switchWorkspace(to: index); applyLayout()
+        case let .workspace(index):
+            world.switchWorkspace(to: index)
+            applyLayout()
+            if let window = mouse.targetAfterLayoutChange() {
+                focusFromMouse(window)
+            }
         case let .moveToWorkspace(index, follow):
             let window = liveCommandWindow()
             if let window, let frame = native[window]?.frame {

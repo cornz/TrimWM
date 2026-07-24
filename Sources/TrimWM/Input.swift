@@ -167,6 +167,12 @@ struct MouseTargetState {
         return candidate
     }
 
+    mutating func refreshed(at point: CGPoint) -> WindowToken? {
+        let candidate = target(at: point)
+        last = candidate
+        return candidate
+    }
+
     func target(at point: CGPoint) -> WindowToken? {
         surfaces.first(where: { $0.frame.contains(point) })?.token
     }
@@ -261,6 +267,13 @@ final class MouseFocusMonitor: @unchecked Sendable {
     ) {
         lock.withLock {
             state.update(frames, frontToBack: frontToBack, columnDraggable: columnDraggable)
+        }
+    }
+
+    func targetAfterLayoutChange() -> WindowToken? {
+        guard let point = CGEvent(source: nil)?.location else { return nil }
+        return lock.withLock {
+            focusesOnMove ? state.refreshed(at: point) : nil
         }
     }
 
