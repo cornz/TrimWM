@@ -16,14 +16,15 @@ session restore, network access, external packages, or settings window.
 ## Requirements
 
 - Apple Silicon Mac
-- macOS 26.x
-- Xcode 26.x command-line tools
+- macOS 26.0 or later
 - Accessibility permission for `TrimWM.app`
-- **Displays have separate Spaces** enabled
 
-TrimWM manages normal windows on the main display. It observes but does not
-move windows known to be on inactive native macOS Spaces. Logical TrimWM
-workspaces are independent from native Spaces.
+## Current limitations
+
+- TrimWM currently manages normal windows on the main display only.
+- It observes but does not move windows known to be on inactive native macOS
+  Spaces. Logical TrimWM workspaces are independent from native Spaces.
+- Private SkyLight APIs may require updates for future macOS releases.
 
 ## Build and install
 
@@ -127,6 +128,8 @@ To uninstall, choose **Quit TrimWM** first, remove the app, then remove its
 Accessibility and Login Items entries. The config may be retained or deleted.
 
 ## Development
+
+Building from source requires Xcode 26.x.
 
 Run the deterministic test suite:
 
