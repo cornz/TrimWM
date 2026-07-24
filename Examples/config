@@ -1,4 +1,4 @@
-# ~/.config/cornzwm/config
+# ~/.config/trimwm/config
 set $mod alt
 
 workspace-count 10

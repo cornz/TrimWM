@@ -15,6 +15,37 @@ enum LoginItemPlanner {
     }
 }
 
+enum RuntimePaths {
+    static func configURL(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> URL {
+        migratedFile(
+            from: home.appending(path: ".config/cornzwm/config"),
+            to: home.appending(path: ".config/trimwm/config")
+        )
+    }
+
+    static func journalURL(
+        applicationSupport: URL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+    ) -> URL {
+        migratedFile(
+            from: applicationSupport.appending(path: "cornzWM/crash-journal.json"),
+            to: applicationSupport.appending(path: "TrimWM/crash-journal.json")
+        )
+    }
+
+    static func migratedFile(from legacy: URL, to current: URL, fileManager: FileManager = .default) -> URL {
+        guard !fileManager.fileExists(atPath: current.path),
+              fileManager.fileExists(atPath: legacy.path)
+        else { return current }
+        do {
+            try fileManager.createDirectory(at: current.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try fileManager.moveItem(at: legacy, to: current)
+            return current
+        } catch {
+            return legacy
+        }
+    }
+}
+
 enum CommandTargetResolver {
     static func resolve(
         liveFocused: WindowToken? = nil,
@@ -46,7 +77,7 @@ final class WMController {
     private let hotKeys = HotKeyManager()
     private let mouse = MouseFocusMonitor()
     private let events = EventQueue()
-    private let logger = Logger(subsystem: "de.cornz.cornzWM", category: "runtime")
+    private let logger = Logger(subsystem: "de.cornz.TrimWM", category: "runtime")
     private var config: WMConfig
     private var world = World()
     private var native: [WindowToken: AXWindowSnapshot] = [:]
@@ -58,14 +89,11 @@ final class WMController {
     private var lastError: String?
     private var published: (status: String, error: String?)?
 
-    private let configURL = FileManager.default.homeDirectoryForCurrentUser
-        .appending(path: ".config/cornzwm/config")
+    private let configURL = RuntimePaths.configURL()
 
     init() {
         config = (try? ConfigParser.parse(Self.defaultConfig)) ?? WMConfig()
-        let journalURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appending(path: "cornzWM/crash-journal.json")
-        journal = CrashJournal(url: journalURL, bootID: Self.bootID())
+        journal = CrashJournal(url: RuntimePaths.journalURL(), bootID: Self.bootID())
 
         hotKeys.onCommand = { [weak self] command in
             self?.events.push(.command(command))

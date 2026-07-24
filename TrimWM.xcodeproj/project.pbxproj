@@ -38,7 +38,7 @@
 			containerPortal = A00000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A00000000000000000000301;
-			remoteInfo = cornzWM;
+			remoteInfo = TrimWM;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -67,8 +67,8 @@
 		A00000000000000000000029 /* SkyLightTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyLightTests.swift; sourceTree = "<group>"; };
 		A0000000000000000000002A /* EventQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueueTests.swift; sourceTree = "<group>"; };
 		A0000000000000000000002B /* PerformanceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformanceTests.swift; sourceTree = "<group>"; };
-		A00000000000000000000031 /* cornzWM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = cornzWM.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		A00000000000000000000032 /* cornzWMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = cornzWMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000031 /* TrimWM.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TrimWM.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A00000000000000000000032 /* TrimWMTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = TrimWMTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -88,23 +88,23 @@
 		};
 		A00000000000000000000003 /* Sources */ = {
 			isa = PBXGroup;
-			children = (A00000000000000000000006 /* cornzWM */);
+			children = (A00000000000000000000006 /* TrimWM */);
 			path = Sources;
 			sourceTree = "<group>";
 		};
 		A00000000000000000000004 /* Tests */ = {
 			isa = PBXGroup;
-			children = (A00000000000000000000007 /* cornzWMTests */);
+			children = (A00000000000000000000007 /* TrimWMTests */);
 			path = Tests;
 			sourceTree = "<group>";
 		};
 		A00000000000000000000005 /* Products */ = {
 			isa = PBXGroup;
-			children = (A00000000000000000000031 /* cornzWM.app */, A00000000000000000000032 /* cornzWMTests.xctest */);
+			children = (A00000000000000000000031 /* TrimWM.app */, A00000000000000000000032 /* TrimWMTests.xctest */);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		A00000000000000000000006 /* cornzWM */ = {
+		A00000000000000000000006 /* TrimWM */ = {
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000011 /* App.swift */,
@@ -121,10 +121,10 @@
 				A0000000000000000000001C /* SkyLight.swift */,
 				A0000000000000000000001D /* EventQueue.swift */,
 			);
-			path = cornzWM;
+			path = TrimWM;
 			sourceTree = "<group>";
 		};
-		A00000000000000000000007 /* cornzWMTests */ = {
+		A00000000000000000000007 /* TrimWMTests */ = {
 			isa = PBXGroup;
 			children = (
 				A00000000000000000000021 /* BSPLayoutTests.swift */,
@@ -139,32 +139,32 @@
 				A0000000000000000000002A /* EventQueueTests.swift */,
 				A0000000000000000000002B /* PerformanceTests.swift */,
 			);
-			path = cornzWMTests;
+			path = TrimWMTests;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A00000000000000000000301 /* cornzWM */ = {
+		A00000000000000000000301 /* TrimWM */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A00000000000000000000602;
 			buildPhases = (A00000000000000000000411, A00000000000000000000401, A00000000000000000000421);
 			buildRules = ();
 			dependencies = ();
-			name = cornzWM;
-			productName = cornzWM;
-			productReference = A00000000000000000000031 /* cornzWM.app */;
+			name = TrimWM;
+			productName = TrimWM;
+			productReference = A00000000000000000000031 /* TrimWM.app */;
 			productType = "com.apple.product-type.application";
 		};
-		A00000000000000000000302 /* cornzWMTests */ = {
+		A00000000000000000000302 /* TrimWMTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A00000000000000000000603;
 			buildPhases = (A00000000000000000000412, A00000000000000000000402, A00000000000000000000422);
 			buildRules = ();
 			dependencies = (A00000000000000000000202);
-			name = cornzWMTests;
-			productName = cornzWMTests;
-			productReference = A00000000000000000000032 /* cornzWMTests.xctest */;
+			name = TrimWMTests;
+			productName = TrimWMTests;
+			productReference = A00000000000000000000032 /* TrimWMTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -190,7 +190,7 @@
 			productRefGroup = A00000000000000000000005 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
-			targets = (A00000000000000000000301 /* cornzWM */, A00000000000000000000302 /* cornzWMTests */);
+			targets = (A00000000000000000000301 /* TrimWM */, A00000000000000000000302 /* TrimWMTests */);
 		};
 /* End PBXProject section */
 
@@ -215,16 +215,16 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A00000000000000000000202 = {isa = PBXTargetDependency; target = A00000000000000000000301 /* cornzWM */; targetProxy = A00000000000000000000201; };
+		A00000000000000000000202 = {isa = PBXTargetDependency; target = A00000000000000000000301 /* TrimWM */; targetProxy = A00000000000000000000201; };
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		A00000000000000000000501 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Debug; };
 		A00000000000000000000502 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Release; };
-		A00000000000000000000511 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "cornzWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM; PRODUCT_MODULE_NAME = cornzWM; PRODUCT_NAME = cornzWM; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
-		A00000000000000000000512 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "cornzWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM; PRODUCT_MODULE_NAME = cornzWM; PRODUCT_NAME = cornzWM; }; name = Release; };
-		A00000000000000000000521 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM.Tests; PRODUCT_NAME = cornzWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cornzWM.app/Contents/MacOS/cornzWM"; }; name = Debug; };
-		A00000000000000000000522 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.cornzWM.Tests; PRODUCT_NAME = cornzWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/cornzWM.app/Contents/MacOS/cornzWM"; }; name = Release; };
+		A00000000000000000000511 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		A00000000000000000000512 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 2.0.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; }; name = Release; };
+		A00000000000000000000521 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM.Tests; PRODUCT_NAME = TrimWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrimWM.app/Contents/MacOS/TrimWM"; }; name = Debug; };
+		A00000000000000000000522 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM.Tests; PRODUCT_NAME = TrimWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrimWM.app/Contents/MacOS/TrimWM"; }; name = Release; };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */

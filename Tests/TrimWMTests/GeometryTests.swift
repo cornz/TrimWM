@@ -1,6 +1,6 @@
 import CoreGraphics
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class GeometryTests: XCTestCase {
     func testFocusBorderConvertsTopLeftWindowCoordinatesToAppKit() {

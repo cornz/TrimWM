@@ -1,6 +1,6 @@
 import Carbon
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class InputTests: XCTestCase {
     func testPlansUserChords() throws {

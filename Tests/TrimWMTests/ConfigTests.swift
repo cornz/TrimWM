@@ -1,13 +1,31 @@
 import XCTest
 import ServiceManagement
-@testable import cornzWM
+@testable import TrimWM
 
 final class ConfigTests: XCTestCase {
+    func testRuntimePathsMoveLegacyFileOnceAndPreferExistingCurrentFile() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+        let legacy = root.appending(path: "old/config")
+        let current = root.appending(path: "new/config")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try FileManager.default.createDirectory(at: legacy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("legacy".utf8).write(to: legacy)
+        XCTAssertEqual(RuntimePaths.migratedFile(from: legacy, to: current), current)
+        XCTAssertEqual(try String(contentsOf: current, encoding: .utf8), "legacy")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: legacy.path))
+
+        try FileManager.default.createDirectory(at: legacy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data("ignored".utf8).write(to: legacy)
+        XCTAssertEqual(RuntimePaths.migratedFile(from: legacy, to: current), current)
+        XCTAssertEqual(try String(contentsOf: current, encoding: .utf8), "legacy")
+    }
+
     func testXCTestHostNeverStartsWindowManagerRuntime() {
         XCTAssertTrue(RuntimeEnvironment.shouldStartWindowManager([:]))
         XCTAssertFalse(RuntimeEnvironment.shouldStartWindowManager(["XCTestConfigurationFilePath": "/tmp/test.xctestconfiguration"]))
-        XCTAssertFalse(RuntimeEnvironment.shouldStartWindowManager(["XCTestBundlePath": "/tmp/cornzWMTests.xctest"]))
-        XCTAssertFalse(RuntimeEnvironment.shouldStartWindowManager(["XCInjectBundleInto": "/tmp/cornzWM"]))
+        XCTAssertFalse(RuntimeEnvironment.shouldStartWindowManager(["XCTestBundlePath": "/tmp/TrimWMTests.xctest"]))
+        XCTAssertFalse(RuntimeEnvironment.shouldStartWindowManager(["XCInjectBundleInto": "/tmp/TrimWM"]))
     }
 
     func testLoginItemPlannerHandlesNotFoundWithoutFalseUnregister() {

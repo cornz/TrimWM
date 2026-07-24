@@ -1,6 +1,6 @@
 import CoreGraphics
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class PerformanceTests: XCTestCase {
     private let bounds = CGRect(x: 0, y: 31, width: 2560, height: 1409)

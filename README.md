@@ -1,6 +1,6 @@
-# cornzWM v2
+# TrimWM v2
 
-cornzWM is a small, local tiling window manager for Apple Silicon Macs running
+TrimWM is a small, local tiling window manager for Apple Silicon Macs running
 macOS 26. It has two layouts: i3-style BSP autotiling and a minimal
 Niri-style scrolling-column layout. It intentionally has no animations,
 session restore, network access, external packages, or settings window.
@@ -14,38 +14,38 @@ session restore, network access, external packages, or settings window.
 - Apple Silicon Mac
 - macOS 26.x
 - Xcode 26.x command-line tools
-- Accessibility permission for `cornzWM.app`
+- Accessibility permission for `TrimWM.app`
 - **Displays have separate Spaces** enabled
 
 Version 2 manages normal windows on the main display. It observes but does not
-move windows known to be on inactive native macOS Spaces. Logical cornzWM
+move windows known to be on inactive native macOS Spaces. Logical TrimWM
 workspaces are independent from native Spaces.
 
 ## Build and install
 
 ```sh
 xcodebuild build \
-  -project cornzWM.xcodeproj \
-  -scheme cornzWM \
+  -project TrimWM.xcodeproj \
+  -scheme TrimWM \
   -configuration Release \
-  -derivedDataPath .build/cornzwm-release
+  -derivedDataPath .build/trimwm-release
 
-backup_dir="$(mktemp -d /tmp/cornzwm-install.XXXXXX)"
-if [ -e /Applications/cornzWM.app ]; then mv /Applications/cornzWM.app "$backup_dir/"; fi
-ditto .build/cornzwm-release/Build/Products/Release/cornzWM.app /Applications/cornzWM.app
-mkdir -p ~/.config/cornzwm
-cp Examples/config ~/.config/cornzwm/config
-open /Applications/cornzWM.app
+backup_dir="$(mktemp -d /tmp/trimwm-install.XXXXXX)"
+if [ -e /Applications/TrimWM.app ]; then mv /Applications/TrimWM.app "$backup_dir/"; fi
+ditto .build/trimwm-release/Build/Products/Release/TrimWM.app /Applications/TrimWM.app
+mkdir -p ~/.config/trimwm
+cp Examples/config ~/.config/trimwm/config
+open /Applications/TrimWM.app
 ```
 
-Grant `/Applications/cornzWM.app` access under **System Settings → Privacy &
+Grant `/Applications/TrimWM.app` access under **System Settings → Privacy &
 Security → Accessibility**. The menu-bar item changes from `Paused` to a status
 such as `[1N] 2A 5A` when enabled. Every occupied workspace is listed, and
 brackets mark the active one; `A`, `N`, and `F` mean Autotile, Niri, and
 WM-fullscreen.
 
 The distributed Release app is signed with a Developer ID Application
-certificate and hardened runtime. Replacing `/Applications/cornzWM.app` with
+certificate and hardened runtime. Replacing `/Applications/TrimWM.app` with
 another build signed by the same certificate preserves its Accessibility
 identity. Grant access only to that installed app. Xcode, `xctest`, Terminal,
 and copies below `.build` do not need Accessibility access and their prompts
@@ -54,14 +54,19 @@ requires one fresh grant.
 
 ## Configuration
 
-The config path is `~/.config/cornzwm/config`. If it is absent, cornzWM uses
+The config path is `~/.config/trimwm/config`. If it is absent, TrimWM uses
 the built-in default. [Examples/config](Examples/config) contains the complete
 shipped configuration and migrated app rules.
 
-The parser deliberately supports only variables, gaps, split ratio, border
+The syntax is deliberately a small i3/Sway-style command language rather than
+TOML or KDL. The parser supports only variables, gaps, split ratio, border
 style, mouse focus, login launch, bindings and modes, exact bundle-ID
 assignments, and floating rules. Reload is transactional; an invalid file
 leaves the previous configuration active and displays the error in the menu.
+
+When upgrading from cornzWM, quit the old app before starting TrimWM. On first
+launch, TrimWM moves an existing `~/.config/cornzwm/config` and crash journal
+to their new TrimWM locations if the new files do not exist yet.
 
 Default highlights:
 
@@ -89,7 +94,7 @@ chosen direction.
 `focus-follows-mouse true` activates the concrete managed window immediately
 when the pointer crosses its boundary. It has no delay and never moves the
 pointer. Activating an app through Command-Tab follows its focused window to
-the corresponding cornzWM workspace. The focused managed window has a thin,
+the corresponding TrimWM workspace. The focused managed window has a thin,
 click-through border. Configure it in points and with either the macOS accent
 color or an RGB/RGBA hex value:
 
@@ -107,18 +112,18 @@ Only one `border color` line is needed. A width of `0` hides the border.
 ## Recovery and removal
 
 Logical workspaces are implemented by moving inactive windows safely beyond
-all connected displays. Before cornzWM first hides a window, it atomically
+all connected displays. Before TrimWM first hides a window, it atomically
 stores only that window's original frame in:
 
 ```text
-~/Library/Application Support/cornzWM/crash-journal.json
+~/Library/Application Support/TrimWM/crash-journal.json
 ```
 
-**Disable**, **Restore Hidden Windows**, and **Quit cornzWM** restore every
+**Disable**, **Restore Hidden Windows**, and **Quit TrimWM** restore every
 reachable hidden window. Failed restores remain in the journal for a later
 best-effort attempt. No workspace, layout, focus, or session state is saved.
 
-To uninstall, choose **Quit cornzWM** first, remove the app, then remove its
+To uninstall, choose **Quit TrimWM** first, remove the app, then remove its
 Accessibility and Login Items entries. The config may be retained or deleted.
 
 ## Development
@@ -127,8 +132,8 @@ Run the deterministic test suite:
 
 ```sh
 xcodebuild test \
-  -project cornzWM.xcodeproj \
-  -scheme cornzWM \
+  -project TrimWM.xcodeproj \
+  -scheme TrimWM \
   -configuration Debug \
   -derivedDataPath .build/tests \
   CODE_SIGNING_ALLOWED=NO
@@ -143,7 +148,7 @@ permission.
 
 ## Inspiration and attribution
 
-cornzWM is an independent implementation inspired by the responsiveness and
+TrimWM is an independent implementation inspired by the responsiveness and
 per-process Accessibility architecture of
 [OmniWM](https://github.com/OmniWM/OmniWM), the tree workflow of
 [i3](https://i3wm.org/), the automatic split rule from

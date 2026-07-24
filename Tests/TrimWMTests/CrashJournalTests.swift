@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class CrashJournalTests: XCTestCase {
     func testPersistsFirstVisibleFrameAndRemovesAtomically() throws {

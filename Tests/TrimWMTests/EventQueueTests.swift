@@ -1,5 +1,5 @@
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class EventQueueTests: XCTestCase {
     private let a = WindowToken(pid: 1, id: 1)

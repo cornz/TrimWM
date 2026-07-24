@@ -1,6 +1,6 @@
 import XCTest
 import CoreGraphics
-@testable import cornzWM
+@testable import TrimWM
 
 final class SkyLightTests: XCTestCase {
     func testParsesMainDisplayCurrentSpace() {

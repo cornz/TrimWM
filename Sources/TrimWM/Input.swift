@@ -44,7 +44,7 @@ enum HotKeyPlanner {
     ]
 }
 
-private func cornzWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, userData: UnsafeMutableRawPointer?) -> OSStatus {
+private func TrimWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, userData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let event, let userData else { return OSStatus(eventNotHandledErr) }
     var id = EventHotKeyID()
     let status = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout.size(ofValue: id), nil, &id)
@@ -63,7 +63,7 @@ final class HotKeyManager: @unchecked Sendable {
 
     init() {
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
-        handlerStatus = InstallEventHandler(GetApplicationEventTarget(), cornzWMHotKeyHandler, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+        handlerStatus = InstallEventHandler(GetApplicationEventTarget(), TrimWMHotKeyHandler, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
     }
 
     deinit {
@@ -123,7 +123,7 @@ final class HotKeyManager: @unchecked Sendable {
     }
 }
 
-private func cornzWMMouseCallback(
+private func TrimWMMouseCallback(
     _: CGEventTapProxy,
     type: CGEventType,
     event: CGEvent,
@@ -239,7 +239,7 @@ final class MouseFocusMonitor: @unchecked Sendable {
         ]
             .reduce(CGEventMask()) { $0 | CGEventMask(1 << $1.rawValue) }
         tap = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .tailAppendEventTap, options: .defaultTap,
-            eventsOfInterest: events, callback: cornzWMMouseCallback,
+            eventsOfInterest: events, callback: TrimWMMouseCallback,
             userInfo: Unmanaged.passUnretained(self).toOpaque())
         guard let tap else { return false }
         source = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, tap, 0)

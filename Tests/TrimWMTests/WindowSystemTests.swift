@@ -1,7 +1,7 @@
 import ApplicationServices
 import CoreGraphics
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class WindowSystemTests: XCTestCase {
     func testOnlyMoveAndResizeNotificationsUseTargetedFrameRefresh() {

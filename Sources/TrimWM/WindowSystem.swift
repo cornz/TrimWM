@@ -294,7 +294,7 @@ private final class AXWindowIDResolver: @unchecked Sendable {
     }
 }
 
-private func cornzWMObserverCallback(
+private func TrimWMObserverCallback(
     _: AXObserver,
     element: AXUIElement,
     notification: CFString,
@@ -337,14 +337,14 @@ private final class AXContext: @unchecked Sendable {
         self.onScan = onScan
         self.onFrame = onFrame
         application = AXUIElementCreateApplication(pid)
-        queue = DispatchQueue(label: "de.cornz.cornzWM.ax.\(pid)", qos: .userInteractive)
+        queue = DispatchQueue(label: "de.cornz.TrimWM.ax.\(pid)", qos: .userInteractive)
         AXUIElementSetMessagingTimeout(application, 0.5)
     }
 
     func start() {
         stateLock.withLock { stopped = false }
         var created: AXObserver?
-        guard AXObserverCreate(pid, cornzWMObserverCallback, &created) == .success, let created else {
+        guard AXObserverCreate(pid, TrimWMObserverCallback, &created) == .success, let created else {
             scan()
             return
         }

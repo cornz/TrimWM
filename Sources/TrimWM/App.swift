@@ -93,7 +93,7 @@ enum RuntimeEnvironment {
 
 @main
 @MainActor
-enum cornzWMMain {
+enum TrimWMMain {
     static func main() {
         let application = NSApplication.shared
         let delegate = AppDelegate()
@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateMenu(status: String, error: String?) {
         statusItem?.button?.title = status
         let menu = NSMenu()
-        let state = NSMenuItem(title: error ?? "cornzWM v2 · \(status)", action: nil, keyEquivalent: "")
+        let state = NSMenuItem(title: error ?? "TrimWM v2 · \(status)", action: nil, keyEquivalent: "")
         state.isEnabled = false
         menu.addItem(state)
         menu.addItem(.separator())
@@ -140,7 +140,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(.separator())
         menu.addItem(withTitle: "Accessibility Settings…", action: #selector(accessibility), keyEquivalent: "")
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Quit cornzWM", action: #selector(quit), keyEquivalent: "q")
+        menu.addItem(withTitle: "Quit TrimWM", action: #selector(quit), keyEquivalent: "q")
         for item in menu.items { if item.action != nil { item.target = self } }
         statusItem?.menu = menu
     }

@@ -1,6 +1,6 @@
 import CoreGraphics
 import XCTest
-@testable import cornzWM
+@testable import TrimWM
 
 final class NiriLayoutTests: XCTestCase {
     private let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
