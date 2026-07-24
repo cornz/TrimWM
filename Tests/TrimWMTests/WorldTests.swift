@@ -106,9 +106,11 @@ final class WorldTests: XCTestCase {
         var workspace = WorkspaceState()
         let fullscreen = WindowToken(pid: 7, id: 1)
         let overlay = WindowToken(pid: 7, id: 2)
-        let unrelated = WindowToken(pid: 8, id: 3)
+        let sameApplicationTiledWindow = WindowToken(pid: 7, id: 3)
+        let unrelated = WindowToken(pid: 8, id: 4)
         let overlayFrame = CGRect(x: 200, y: 150, width: 300, height: 240)
         workspace.add(fullscreen, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(sameApplicationTiledWindow, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
         workspace.add(overlay, floating: overlayFrame, bounds: bounds, gaps: gaps, splitRatio: 1)
         workspace.add(
             unrelated,
@@ -124,6 +126,45 @@ final class WorldTests: XCTestCase {
             fullscreen: bounds,
             overlay: overlayFrame,
         ])
+    }
+
+    func testLeavingFullscreenRestoresTiledAndFloatingWindowFrames() {
+        var workspace = WorkspaceState()
+        let fullscreen = WindowToken(pid: 7, id: 1)
+        let tiled = WindowToken(pid: 8, id: 2)
+        let overlay = WindowToken(pid: 7, id: 3)
+        workspace.add(fullscreen, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(tiled, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(
+            overlay,
+            floating: CGRect(x: 200, y: 150, width: 300, height: 240),
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        let normalFrames = workspace.frames(bounds: bounds, gaps: gaps)
+
+        workspace.fullscreen = fullscreen
+        workspace.fullscreen = nil
+
+        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), normalFrames)
+    }
+
+    func testStaleFullscreenWindowFallsBackToNormalLayout() {
+        var workspace = WorkspaceState()
+        workspace.add(token(1), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(
+            token(2),
+            floating: CGRect(x: 100, y: 100, width: 300, height: 200),
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        let normalFrames = workspace.frames(bounds: bounds, gaps: gaps)
+
+        workspace.fullscreen = token(99)
+
+        XCTAssertEqual(workspace.frames(bounds: bounds, gaps: gaps), normalFrames)
     }
 
     func testDirectionalFocusMoveAndResizeIncludeFloatingWindows() {
