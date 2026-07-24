@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="surface" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f4f2"/>
+    </linearGradient>
+    <linearGradient id="window" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14161b"/>
+      <stop offset="1" stop-color="#24272e"/>
+    </linearGradient>
+    <linearGradient id="focus" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0057ff"/>
+      <stop offset="1" stop-color="#176dff"/>
+    </linearGradient>
+  </defs>
+
+  <rect
+    x="48"
+    y="48"
+    width="928"
+    height="928"
+    rx="210"
+    fill="url(#surface)"
+    stroke="#d9dadd"
+    stroke-width="2"
+  />
+
+  <path
+    d="M164 280H212V744H164C129 744 100 715 100 680V344C100 309 129 280 164 280Z"
+    fill="url(#window)"
+  />
+  <rect x="228" y="280" width="164" height="464" rx="5" fill="url(#window)"/>
+
+  <rect x="408" y="280" width="208" height="148" rx="7" fill="url(#focus)"/>
+  <rect x="440" y="444" width="70" height="300" rx="5" fill="url(#focus)"/>
+  <rect x="514" y="444" width="70" height="300" rx="5" fill="url(#focus)"/>
+
+  <rect x="632" y="280" width="164" height="464" rx="5" fill="url(#window)"/>
+  <path
+    d="M812 280H860C895 280 924 309 924 344V680C924 715 895 744 860 744H812Z"
+    fill="url(#window)"
+  />
+</svg>
