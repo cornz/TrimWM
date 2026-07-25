@@ -22,6 +22,16 @@ session restore, network access, external packages, or settings window.
 > and are notarized by Apple. The notarization ticket is stapled to the app so
 > Gatekeeper can verify it without relying on a live notarization lookup.
 
+## Screenshots
+
+### BSP autotiling
+
+![TrimWM arranging three windows with BSP autotiling](Design/Screenshots/trimwm-bsp.png)
+
+### Niri-style scrolling columns
+
+![TrimWM arranging horizontally scrolling columns](Design/Screenshots/trimwm-niri.png)
+
 ## Requirements
 
 - Apple Silicon Mac
