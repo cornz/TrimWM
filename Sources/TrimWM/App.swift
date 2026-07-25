@@ -116,6 +116,22 @@ enum RuntimeEnvironment {
     }
 }
 
+enum MenuToggleAction: Equatable {
+    case enable
+    case disable
+
+    init(isEnabled: Bool) {
+        self = isEnabled ? .disable : .enable
+    }
+
+    var title: String {
+        switch self {
+        case .enable: "Enable"
+        case .disable: "Disable"
+        }
+    }
+}
+
 @main
 @MainActor
 enum TrimWMMain {
@@ -166,8 +182,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         state.isEnabled = false
         menu.addItem(state)
         menu.addItem(.separator())
-        menu.addItem(withTitle: "Enable", action: #selector(enable), keyEquivalent: "")
-        menu.addItem(withTitle: "Disable", action: #selector(disable), keyEquivalent: "")
+        let toggle = MenuToggleAction(isEnabled: controller?.isEnabled == true)
+        let toggleSelector = switch toggle {
+        case .enable: #selector(enable)
+        case .disable: #selector(disable)
+        }
+        menu.addItem(withTitle: toggle.title, action: toggleSelector, keyEquivalent: "")
         menu.addItem(withTitle: "Reload Configuration", action: #selector(reload), keyEquivalent: "r")
         menu.addItem(withTitle: "Restore Hidden Windows", action: #selector(disable), keyEquivalent: "")
         menu.addItem(.separator())

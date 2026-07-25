@@ -7,6 +7,13 @@ import XCTest
 final class ControllerTests: XCTestCase {
     private let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
 
+    func testMenuToggleMatchesEnabledState() {
+        XCTAssertEqual(MenuToggleAction(isEnabled: false), .enable)
+        XCTAssertEqual(MenuToggleAction(isEnabled: false).title, "Enable")
+        XCTAssertEqual(MenuToggleAction(isEnabled: true), .disable)
+        XCTAssertEqual(MenuToggleAction(isEnabled: true).title, "Disable")
+    }
+
     func testTrustLifecycleStartsOnceAndDisablesCleanly() {
         let harness = makeHarness(trusted: false)
         var statuses: [(String, String?)] = []

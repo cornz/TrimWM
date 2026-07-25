@@ -12,6 +12,10 @@ Documentation
 - Add a security policy and structured bug and feature request forms.
 - Ignore common certificate, provisioning, key, and environment files.
 
+Bug fixes
+
+- Show only the applicable Enable or Disable action in the menu.
+
 ## [0.2.29] — 24 July 2026
 
 This is the first published, notarized TrimWM release. Versions 0.2.1 through
