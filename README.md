@@ -47,6 +47,15 @@ session restore, network access, external packages, or settings window.
 
 ## Install
 
+### Homebrew
+
+```sh
+brew tap cornz/tap
+brew install --cask trimwm
+```
+
+### Manual
+
 1. Download `TrimWM-<version>.zip` from the
    [latest GitHub release](https://github.com/cornz/TrimWM/releases/latest).
 2. Unzip it and move `TrimWM.app` to `/Applications`.
