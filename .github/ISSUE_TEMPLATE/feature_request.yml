@@ -1,0 +1,59 @@
+name: Feature request
+description: Propose a focused addition that fits TrimWM's goals
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        TrimWM deliberately favors a small, fast runtime with no animations,
+        external dependencies, helper daemons, or background network access.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: Describe the concrete workflow that is currently difficult or impossible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain the smallest user-visible change that solves the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: interaction
+    attributes:
+      label: Interaction example
+      description: Show proposed bindings, configuration, or before/after window behavior.
+      placeholder: |
+        bindsym $mod+... command
+
+  - type: textarea
+    id: fit
+    attributes:
+      label: Fit with TrimWM
+      description: Explain why this belongs in the Niri/i3-autotiling feature set without adding runtime complexity.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Include config-only workarounds or narrower designs you considered.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: The proposal does not require animations or background network access.
+          required: true
+        - label: I searched existing issues for the same request.
+          required: true

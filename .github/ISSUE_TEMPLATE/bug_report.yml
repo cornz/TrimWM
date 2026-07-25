@@ -1,0 +1,102 @@
+name: Bug report
+description: Report reproducible incorrect TrimWM behavior
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove private window titles, document
+        contents, tokens, and other unrelated personal data from logs and
+        screenshots.
+
+  - type: input
+    id: trimwm-version
+    attributes:
+      label: TrimWM version
+      description: Use the release tag or commit hash.
+      placeholder: v0.2.29
+    validations:
+      required: true
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Include the exact version and build number.
+      placeholder: macOS 26.0 (25A...)
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac model
+      placeholder: MacBook Pro with Apple M4 Pro
+    validations:
+      required: true
+
+  - type: dropdown
+    id: layout
+    attributes:
+      label: Layout
+      options:
+        - Niri
+        - BSP autotiling
+        - Floating
+        - WM-fullscreen
+        - Not layout-specific
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Provide the shortest deterministic sequence that triggers the bug.
+      placeholder: |
+        1. Open ...
+        2. Press ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant configuration
+      description: Paste only the rules and bindings needed to reproduce the issue.
+      render: text
+
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Additional diagnostics
+      description: Add sanitized logs, screenshots, or a screen recording when useful.
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I reproduced this with the latest TrimWM release.
+          required: true
+        - label: I removed unrelated private data from this report.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
