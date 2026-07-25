@@ -15,9 +15,8 @@ macOS 26. It has two layouts: i3-style BSP autotiling and a minimal
 Niri-style scrolling-column layout. It intentionally has no animations,
 session restore, network access, external packages, or settings window.
 
-> **Status:** local release candidate. The project uses Accessibility and a
-> few dynamically resolved private SkyLight symbols. Private macOS APIs can
-> change between OS releases.
+> TrimWM uses Accessibility and a few dynamically resolved private SkyLight
+> symbols. Private macOS APIs can change between OS releases.
 >
 > Official releases are signed with a Developer ID, use the hardened runtime,
 > and are notarized by Apple. The notarization ticket is stapled to the app so
@@ -36,7 +35,31 @@ session restore, network access, external packages, or settings window.
   Spaces. Logical TrimWM workspaces are independent from native Spaces.
 - Private SkyLight APIs may require updates for future macOS releases.
 
-## Build and install
+## Install
+
+1. Download `TrimWM-<version>.zip` from the
+   [latest GitHub release](https://github.com/cornz/TrimWM/releases/latest).
+2. Unzip it and move `TrimWM.app` to `/Applications`.
+3. Optionally download
+   [Examples/config](https://github.com/cornz/TrimWM/raw/main/Examples/config)
+   and install it:
+
+   ```sh
+   mkdir -p ~/.config/trimwm
+   mv ~/Downloads/config ~/.config/trimwm/config
+   ```
+
+4. Open `/Applications/TrimWM.app`.
+5. Grant it access under **System Settings → Privacy & Security →
+   Accessibility**.
+
+TrimWM uses its built-in defaults when `~/.config/trimwm/config` does not
+exist. The distributed app is signed with a Developer ID Application
+certificate, uses the hardened runtime, and is notarized and stapled.
+
+## Build from source
+
+Building from source requires Xcode 26.x.
 
 ```sh
 xcodebuild build \
@@ -59,8 +82,6 @@ such as `[1N] 2T 5T` when enabled. Every occupied workspace is listed, and
 brackets mark the active one; `T`, `N`, and `F` mean Tiling, Niri, and
 WM-fullscreen.
 
-The distributed Release app is signed with a Developer ID Application
-certificate, uses the hardened runtime, and is notarized and stapled.
 Replacing `/Applications/TrimWM.app` with another build signed by the same
 certificate preserves its Accessibility identity. Grant access only to that
 installed app. Xcode, `xctest`, Terminal, and copies below `.build` do not need
@@ -139,8 +160,6 @@ Accessibility and Login Items entries. The config may be retained or deleted.
 
 ## Development
 
-Building from source requires Xcode 26.x.
-
 Run the deterministic test suite:
 
 ```sh
@@ -158,6 +177,10 @@ pure value types. There is no polling loop, timer, animation engine, package
 manager dependency, telemetry, IPC server, or helper daemon. The XCTest host
 explicitly suppresses window-manager startup, so tests never need Accessibility
 permission.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before proposing a change. User-visible
+changes are recorded in [CHANGELOG.md](CHANGELOG.md), and security issues
+should follow [SECURITY.md](SECURITY.md).
 
 ## Inspiration and attribution
 
