@@ -1,5 +1,15 @@
 # TrimWM
 
+## Why TrimWM?
+
+TrimWM combines Niri-style scrolling columns with i3-style automatic tiling.
+
+- Fast and animation-free
+- No external dependencies or background network access
+- No third-party dependency supply-chain risk
+- Public or private APIs—whichever provides the fastest reliable result
+- Deliberately smaller than OmniWM and more layout-focused than AeroSpace
+
 TrimWM is a small, local tiling window manager for Apple Silicon Macs running
 macOS 26. It has two layouts: i3-style BSP autotiling and a minimal
 Niri-style scrolling-column layout. It intentionally has no animations,
