@@ -5,12 +5,15 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.2.30] — 25 July 2026
+
 Documentation
 
 - Add the project goals, upstream inspiration, and contribution expectations.
 - Replace the release-candidate wording with direct installation instructions.
 - Add a security policy and structured bug and feature request forms.
 - Ignore common certificate, provisioning, key, and environment files.
+- Add sanitized BSP and Niri screenshots.
 
 Bug fixes
 
@@ -77,5 +80,6 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.2.29...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.2.30...HEAD
+[0.2.30]: https://github.com/cornz/TrimWM/compare/v0.2.29...v0.2.30
 [0.2.29]: https://github.com/cornz/TrimWM/releases/tag/v0.2.29
