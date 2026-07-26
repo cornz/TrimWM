@@ -5,6 +5,8 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.2.31] — 26 July 2026
+
 New features
 
 - Add `niri single-window-full-width` so a lone Niri window can use the full
@@ -15,6 +17,10 @@ Bug fixes
 
 - Reconcile closed windows that remain exposed as offscreen Accessibility
   elements so layouts reflow immediately.
+
+Documentation
+
+- Add Homebrew Tap installation commands.
 
 ## [0.2.30] — 25 July 2026
 
@@ -91,6 +97,7 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.2.30...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.2.31...HEAD
+[0.2.31]: https://github.com/cornz/TrimWM/compare/v0.2.30...v0.2.31
 [0.2.30]: https://github.com/cornz/TrimWM/compare/v0.2.29...v0.2.30
 [0.2.29]: https://github.com/cornz/TrimWM/releases/tag/v0.2.29
