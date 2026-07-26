@@ -12,6 +12,15 @@ enum MouseSurfaceFilter {
     }
 }
 
+enum WindowInventoryReconciler {
+    static func stalePIDs(
+        tracked: Set<WindowToken>,
+        liveWindowIDs: Set<CGWindowID>
+    ) -> Set<pid_t> {
+        Set(tracked.lazy.filter { !liveWindowIDs.contains($0.id) }.map(\.pid))
+    }
+}
+
 struct WindowClassificationInput: Equatable, Sendable {
     let role: String?
     let subrole: String?
@@ -577,7 +586,15 @@ private final class AXContext: @unchecked Sendable {
     }
 
     private func elementArray(_ element: AXUIElement, _ attribute: String) -> [AXUIElement]? {
-        copy(element, attribute) as? [AXUIElement]
+        var value: CFTypeRef?
+        switch AXUIElementCopyAttributeValue(element, attribute as CFString, &value) {
+        case .success:
+            return value as? [AXUIElement]
+        case .noValue:
+            return []
+        default:
+            return nil
+        }
     }
 
     private func string(_ element: AXUIElement, _ attribute: String) -> String? { copy(element, attribute) as? String }
@@ -619,6 +636,7 @@ final class WindowSystem: NSObject {
     private var contexts: [pid_t: AXContext] = [:]
     private var windows: [WindowToken: AXWindowSnapshot] = [:]
     private let skyLight = SkyLight()
+    private var reconcileTimer: Timer?
 
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -641,14 +659,20 @@ final class WindowSystem: NSObject {
         center.addObserver(self, selector: #selector(applicationLaunched), name: NSWorkspace.didLaunchApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(applicationTerminated), name: NSWorkspace.didTerminateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(applicationActivated), name: NSWorkspace.didActivateApplicationNotification, object: nil)
+        center.addObserver(self, selector: #selector(applicationDeactivated), name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(activeSpaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         for application in NSWorkspace.shared.runningApplications { add(application) }
+        let timer = Timer(timeInterval: 0.5, target: self, selector: #selector(reconcileClosedWindows), userInfo: nil, repeats: true)
+        RunLoop.main.add(timer, forMode: .common)
+        reconcileTimer = timer
     }
 
     func stop() {
         NSWorkspace.shared.notificationCenter.removeObserver(self)
         NotificationCenter.default.removeObserver(self)
+        reconcileTimer?.invalidate()
+        reconcileTimer = nil
         contexts.values.forEach { $0.stop() }
         contexts.removeAll()
         windows.removeAll()
@@ -728,8 +752,28 @@ final class WindowSystem: NSObject {
         contexts[application.processIdentifier]?.scan()
     }
 
+    @objc private func applicationDeactivated(_ notification: Notification) {
+        guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+        contexts[application.processIdentifier]?.scan()
+    }
+
     @objc private func activeSpaceChanged() { rescan() }
     @objc private func screenParametersChanged() { rescan() }
+
+    @objc private func reconcileClosedWindows() {
+        guard !windows.isEmpty,
+              let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+                as? [[String: Any]]
+        else { return }
+        let liveWindowIDs = Set(list.compactMap {
+            ($0[kCGWindowNumber as String] as? NSNumber)?.uint32Value
+        })
+        let stalePIDs = WindowInventoryReconciler.stalePIDs(
+            tracked: Set(windows.values.lazy.filter(\.isOnScreen).map(\.token)),
+            liveWindowIDs: liveWindowIDs
+        )
+        for pid in stalePIDs { contexts[pid]?.scan() }
+    }
 
     private func add(_ application: NSRunningApplication) {
         let pid = application.processIdentifier

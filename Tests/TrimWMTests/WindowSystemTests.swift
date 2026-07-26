@@ -4,6 +4,26 @@ import XCTest
 @testable import TrimWM
 
 final class WindowSystemTests: XCTestCase {
+    func testWindowInventoryReconcilerReturnsOnlyPIDsWithMissingWindows() {
+        let first = WindowToken(pid: 10, id: 100)
+        let second = WindowToken(pid: 10, id: 101)
+        let third = WindowToken(pid: 20, id: 200)
+
+        XCTAssertEqual(
+            WindowInventoryReconciler.stalePIDs(
+                tracked: [first, second, third],
+                liveWindowIDs: [100, 200]
+            ),
+            [10]
+        )
+        XCTAssertTrue(
+            WindowInventoryReconciler.stalePIDs(
+                tracked: [first, third],
+                liveWindowIDs: [100, 200]
+            ).isEmpty
+        )
+    }
+
     func testOnlyMoveAndResizeNotificationsUseTargetedFrameRefresh() {
         XCTAssertEqual(AXNotificationRouter.route(kAXWindowMovedNotification as String), .frame)
         XCTAssertEqual(AXNotificationRouter.route(kAXWindowResizedNotification as String), .frame)

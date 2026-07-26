@@ -11,6 +11,11 @@ New features
   workspace and return to its configured column width when another window
   appears.
 
+Bug fixes
+
+- Reconcile closed windows that remain exposed as offscreen Accessibility
+  elements so layouts reflow immediately.
+
 ## [0.2.30] — 25 July 2026
 
 Documentation

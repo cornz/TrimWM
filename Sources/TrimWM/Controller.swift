@@ -335,7 +335,9 @@ final class WMController {
     private func accept(pid: pid_t, windows: [AXWindowSnapshot]) {
         guard isEnabled else { return }
         let previous = native.keys.filter { $0.pid == pid }
-        let incoming = Set(windows.map(\.token))
+        let incoming = Set(windows.compactMap {
+            $0.isOnScreen || journal.entries[$0.token] != nil ? $0.token : nil
+        })
         for token in previous where !incoming.contains(token) {
             native.removeValue(forKey: token)
             frameConstraints.remove(token)
@@ -344,7 +346,7 @@ final class WMController {
         }
 
         let bounds = environment.mainScreenBounds()
-        for window in windows {
+        for window in windows where incoming.contains(window.token) {
             native[window.token] = window
             if world.workspace(of: window.token) == nil {
                 if let entry = journal.entries[window.token], entry.bundleID == window.bundleID {
@@ -367,7 +369,7 @@ final class WMController {
             ledger.observed(window.frame, for: window.token)
         }
         if environment.frontmostPID() == pid,
-           let focused = windows.first(where: \.isFocused),
+           let focused = windows.first(where: { incoming.contains($0.token) && $0.isFocused }),
            world.workspace(of: focused.token) != nil {
             world.focus(
                 focused.token,
@@ -377,7 +379,7 @@ final class WMController {
             )
         }
         let desired = world.visibleFrames(bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes)
-        for window in windows where journal.entries[window.token] != nil {
+        for window in windows where incoming.contains(window.token) && journal.entries[window.token] != nil {
             if Geometry.shouldClearJournal(observed: window.frame, desired: desired[window.token], bounds: bounds) {
                 try? journal.remove(window.token)
             }

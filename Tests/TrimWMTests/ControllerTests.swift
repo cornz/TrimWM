@@ -261,6 +261,28 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.mouse.updates.last?.frames[window]?.width, bounds.width / 2)
     }
 
+    func testClosedNiriWindowIsRemovedWhenAXKeepsItsOffscreenElement() {
+        let harness = makeHarness()
+        let first = WindowToken(pid: 58, id: 1)
+        let second = WindowToken(pid: 58, id: 2)
+        harness.environment.frontmostPID = 58
+        harness.controller.start()
+        harness.controller.handle([.windows(58, [
+            snapshot(first, x: 0, focused: true),
+            snapshot(second, x: 500),
+        ])])
+        harness.controller.execute(.layout(.niri))
+        XCTAssertEqual(harness.mouse.updates.last?.frames[first]?.width, bounds.width / 2)
+
+        harness.controller.handle([.windows(58, [
+            snapshot(first, x: 0, focused: true),
+            snapshot(second, x: 500, isOnScreen: false),
+        ])])
+
+        XCTAssertNil(harness.controller.world.workspace(of: second))
+        XCTAssertEqual(harness.mouse.updates.last?.frames[first]?.width, bounds.width)
+    }
+
     func testReloadErrorsModesShellAndEnvironmentActionsAreReported() throws {
         let harness = makeHarness()
         var statuses: [(String, String?)] = []
@@ -361,7 +383,8 @@ final class ControllerTests: XCTestCase {
     private func snapshot(
         _ token: WindowToken,
         x: CGFloat,
-        focused: Bool = false
+        focused: Bool = false,
+        isOnScreen: Bool = true
     ) -> AXWindowSnapshot {
         AXWindowSnapshot(
             token: token,
@@ -370,7 +393,7 @@ final class ControllerTests: XCTestCase {
             frame: CGRect(x: x, y: 0, width: 400, height: 300),
             disposition: .tiled,
             isFocused: focused,
-            isOnScreen: true,
+            isOnScreen: isOnScreen,
             isOnCurrentSpace: true,
             minimumSize: CGSize(width: 100, height: 80),
             element: AXUIElementCreateApplication(token.pid)
