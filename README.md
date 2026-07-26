@@ -114,7 +114,7 @@ the built-in default. [Examples/config](Examples/config) contains the complete
 shipped configuration and migrated app rules.
 
 The syntax is deliberately a small i3/Sway-style command language rather than
-TOML or KDL. The parser supports only variables, gaps, split ratio, border
+TOML or KDL. The parser supports only variables, gaps, layout options, border
 style, mouse focus, login launch, bindings and modes, exact bundle-ID
 assignments, and floating rules. Reload is transactional; an invalid file
 leaves the previous configuration active and displays the error in the menu.
@@ -141,6 +141,11 @@ Default highlights:
 Consume requires an adjacent column in the chosen direction. Expel requires at
 least two windows in the focused column; it then creates a new column in the
 chosen direction.
+
+`niri single-window-full-width true` lets one Niri window use the full
+workspace width. Adding a second window restores the configured column widths;
+removing it expands the remaining window again. Set the option to `false` to
+keep a single window at its normal column width.
 
 `focus-follows-mouse true` activates the concrete managed window immediately
 when the pointer crosses its boundary. It has no delay and never moves the

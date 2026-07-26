@@ -26,6 +26,7 @@ final class ConfigTests: XCTestCase {
         gaps inner 4
         gaps outer 8
         autotile split-ratio 1.1
+        niri single-window-full-width false
         focus-follows-mouse true
         start-at-login false
         border color 0x3366CC80
@@ -41,6 +42,7 @@ final class ConfigTests: XCTestCase {
         """)
         XCTAssertEqual(config.gaps, .init(inner: 4, outer: 8))
         XCTAssertEqual(config.splitRatio, 1.1)
+        XCTAssertFalse(config.niriSingleWindowFullWidth)
         XCTAssertFalse(config.startAtLogin)
         XCTAssertEqual(config.border, BorderStyle(color: .rgba(0x33, 0x66, 0xcc, 0x80), width: 3, radius: 12))
         XCTAssertEqual(config.bindings["default"]?.first, Binding(chord: "alt+j", command: .focus(.left)))
@@ -84,6 +86,7 @@ final class ConfigTests: XCTestCase {
             for binding in bindings { _ = try HotKeyPlanner.plan(binding) }
         }
         XCTAssertEqual(config.workspaceCount, 10)
+        XCTAssertTrue(config.niriSingleWindowFullWidth)
         XCTAssertTrue(config.focusFollowsMouse)
         XCTAssertEqual(config.border, BorderStyle(color: .accent, width: 2, radius: 9))
     }
@@ -143,6 +146,7 @@ final class ConfigTests: XCTestCase {
             "border width -1",
             "border radius nan",
             "border opacity 1",
+            "niri single-window-full-width maybe",
         ] {
             XCTAssertThrowsError(try ConfigParser.parse(source), source)
         }

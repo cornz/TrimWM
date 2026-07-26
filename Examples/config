@@ -5,6 +5,7 @@ workspace-count 10
 gaps inner 0
 gaps outer 0
 autotile split-ratio 1.0
+niri single-window-full-width true
 focus-follows-mouse true
 start-at-login true
 border color accent

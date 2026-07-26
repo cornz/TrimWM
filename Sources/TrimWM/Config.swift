@@ -39,6 +39,7 @@ struct WMConfig: Equatable, Sendable {
     var workspaceCount = 10
     var gaps = LayoutGaps()
     var splitRatio: CGFloat = 1.0
+    var niriSingleWindowFullWidth = true
     var focusFollowsMouse = true
     var startAtLogin = true
     var border = BorderStyle()
@@ -140,6 +141,12 @@ enum ConfigParser {
             case "autotile":
                 guard fields.count == 3, fields[1] == "split-ratio", let value = Double(fields[2]), value.isFinite, value > 0 else { throw ConfigError.line(number, "invalid split ratio") }
                 config.splitRatio = value
+            case "niri":
+                guard fields.count == 3,
+                      fields[1] == "single-window-full-width",
+                      fields[2] == "true" || fields[2] == "false"
+                else { throw ConfigError.line(number, "invalid niri setting") }
+                config.niriSingleWindowFullWidth = fields[2] == "true"
             case "focus-follows-mouse":
                 config.focusFollowsMouse = try boolean(fields, line: number)
             case "start-at-login":

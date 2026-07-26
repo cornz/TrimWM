@@ -11,8 +11,13 @@ struct NiriLayout: Equatable, Sendable {
     private(set) var viewportOffset: CGFloat = 0
     private var centered: WindowToken?
     private var rowFractions: [WindowToken: CGFloat] = [:]
+    private var singleWindowFullWidth = true
 
     var windows: [WindowToken] { columns.flatMap(\.windows) }
+
+    mutating func setSingleWindowFullWidth(_ enabled: Bool) {
+        singleWindowFullWidth = enabled
+    }
 
     mutating func insert(_ window: WindowToken) {
         let index = focused.flatMap(columnIndex(containing:)).map { $0 + 1 } ?? columns.endIndex
@@ -270,10 +275,11 @@ struct NiriLayout: Equatable, Sendable {
         innerGap: CGFloat,
         minimumSizes: [WindowToken: CGSize]
     ) -> [(minX: CGFloat, width: CGFloat)] {
+        let fillsViewport = singleWindowFullWidth && windows.count == 1
         var x: CGFloat = 0
         return columns.map { column in
             let minimum = column.windows.map { minimumSizes[$0]?.width ?? 1 }.max()!
-            let width = max(floor(viewportWidth * column.width), minimum)
+            let width = max(floor(viewportWidth * (fillsViewport ? 1 : column.width)), minimum)
             defer { x += width + max(0, innerGap) }
             return (x, width)
         }

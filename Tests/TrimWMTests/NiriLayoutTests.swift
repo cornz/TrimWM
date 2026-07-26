@@ -6,6 +6,24 @@ final class NiriLayoutTests: XCTestCase {
     private let bounds = CGRect(x: 0, y: 0, width: 1000, height: 600)
     private let gaps = LayoutGaps()
 
+    func testSingleWindowFillsViewportUntilAnotherWindowIsAdded() {
+        var layout = NiriLayout()
+        layout.insert(token(1))
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(1)], bounds)
+
+        layout.insert(token(2))
+        var frames = layout.frames(in: bounds, gaps: gaps)
+        XCTAssertEqual(frames[token(1)]?.width, 500)
+        XCTAssertEqual(frames[token(2)]?.width, 500)
+
+        layout.remove(token(2))
+        frames = layout.frames(in: bounds, gaps: gaps)
+        XCTAssertEqual(frames[token(1)], bounds)
+
+        layout.setSingleWindowFullWidth(false)
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(1)]?.width, 500)
+    }
+
     func testNewWindowsCreateColumnsWithoutShrinkingExistingColumns() {
         var layout = NiriLayout()
         layout.insert(token(1))
@@ -81,12 +99,13 @@ final class NiriLayoutTests: XCTestCase {
     func testPresetAndPixelWidthsAreClamped() {
         var layout = NiriLayout()
         layout.insert(token(1))
+        layout.insert(token(2))
         layout.setFocusedWidth(0.75)
-        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(1)]?.width, 750)
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(2)]?.width, 750)
         layout.resizeFocused(by: 1000, viewportWidth: 1000)
-        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(1)]?.width, 1000)
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(2)]?.width, 1000)
         layout.resizeFocused(by: -5000, viewportWidth: 1000)
-        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(1)]?.width, 100)
+        XCTAssertEqual(layout.frames(in: bounds, gaps: gaps)[token(2)]?.width, 100)
     }
 
     func testVerticalPixelResizeMovesSharedStackBoundary() {

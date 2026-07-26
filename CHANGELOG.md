@@ -5,6 +5,12 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+New features
+
+- Add `niri single-window-full-width` so a lone Niri window can use the full
+  workspace and return to its configured column width when another window
+  appears.
+
 ## [0.2.30] — 25 July 2026
 
 Documentation

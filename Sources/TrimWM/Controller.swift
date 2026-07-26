@@ -261,6 +261,7 @@ final class WMController {
             }
             if isEnabled { try hotKeys.register(parsed.bindings["default"] ?? []) }
             config = parsed
+            world.setNiriSingleWindowFullWidth(config.niriSingleWindowFullWidth)
             onBorderStyle?(config.border)
             mode = "default"
             lastError = nil
@@ -495,6 +496,7 @@ final class WMController {
                 splitRatio: config.splitRatio,
                 minimumSizes: minimumSizes
             )
+            world.setNiriSingleWindowFullWidth(config.niriSingleWindowFullWidth)
             applyLayout()
         case let .split(axis): world.setNextSplit(axis)
         case .balance: world.balanceVisible(); applyLayout()
@@ -713,6 +715,7 @@ final class WMController {
     gaps inner 0
     gaps outer 0
     autotile split-ratio 1.0
+    niri single-window-full-width true
     focus-follows-mouse true
     start-at-login true
     border color accent

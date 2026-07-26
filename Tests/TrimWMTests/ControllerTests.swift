@@ -237,6 +237,30 @@ final class ControllerTests: XCTestCase {
         XCTAssertFalse(feedback[4].0)
     }
 
+    func testNiriSingleWindowFullWidthCanBeDisabledByReloadingConfig() throws {
+        let harness = makeHarness()
+        let window = WindowToken(pid: 57, id: 1)
+        harness.environment.frontmostPID = 57
+        harness.controller.start()
+        harness.controller.handle([.windows(57, [snapshot(window, x: 0, focused: true)])])
+        harness.controller.execute(.layout(.niri))
+        XCTAssertEqual(harness.mouse.updates.last?.frames[window]?.width, bounds.width)
+
+        try FileManager.default.createDirectory(
+            at: harness.configURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try WMController.defaultConfig
+            .replacingOccurrences(
+                of: "niri single-window-full-width true",
+                with: "niri single-window-full-width false"
+            )
+            .write(to: harness.configURL, atomically: true, encoding: .utf8)
+        harness.controller.reload()
+
+        XCTAssertEqual(harness.mouse.updates.last?.frames[window]?.width, bounds.width / 2)
+    }
+
     func testReloadErrorsModesShellAndEnvironmentActionsAreReported() throws {
         let harness = makeHarness()
         var statuses: [(String, String?)] = []

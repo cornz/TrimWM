@@ -266,6 +266,14 @@ struct World: Equatable, Sendable {
         if workspaces.indices.contains(workspace - 1) { visibleWorkspace = workspace }
     }
 
+    mutating func setNiriSingleWindowFullWidth(_ enabled: Bool) {
+        for index in workspaces.indices {
+            guard case var .niri(layout) = workspaces[index].layout else { continue }
+            layout.setSingleWindowFullWidth(enabled)
+            workspaces[index].layout = .niri(layout)
+        }
+    }
+
     mutating func move(
         _ window: WindowToken,
         to target: Int,
