@@ -9,6 +9,8 @@ Bug fixes
 
 - Stop retrying the same rejected tile size when applications such as Slack
   clamp a window to a maximum size or fixed aspect ratio.
+- Stop fighting windows such as Slack Huddles that initially accept a tile
+  size but repeatedly restore an application-controlled size.
 
 ## [0.2.31] — 26 July 2026
 

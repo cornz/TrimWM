@@ -150,17 +150,34 @@ struct FrameLedger: Sendable {
         var desired: CGRect?
         var inFlight: CGRect?
         var retries = 0
+        var target: CGRect?
+        var wasAtTarget = false
+        var overrides = 0
+        var lastOverrideAt: TimeInterval?
+        var suppressesOverrides = false
     }
     private var entries: [WindowToken: Entry] = [:]
 
     mutating func needsWrite(_ frame: CGRect, for window: WindowToken, tolerance: CGFloat = 4) -> Bool {
         var entry = entries[window] ?? Entry()
+        if entry.target?.approximatelyEquals(frame, tolerance: tolerance) != true {
+            entry.target = frame
+            entry.wasAtTarget = entry.observed?.approximatelyEquals(frame, tolerance: tolerance) == true
+            entry.overrides = 0
+            entry.lastOverrideAt = nil
+            entry.suppressesOverrides = false
+        }
+        if entry.suppressesOverrides {
+            entries[window] = entry
+            return false
+        }
         if entry.desired?.approximatelyEquals(frame, tolerance: tolerance) == true {
             return false
         }
         if entry.observed?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
+            entry.wasAtTarget = true
             entries[window] = entry
             return false
         }
@@ -175,12 +192,35 @@ struct FrameLedger: Sendable {
         return true
     }
 
-    mutating func observed(_ frame: CGRect, for window: WindowToken, tolerance: CGFloat = 4) {
+    mutating func observed(
+        _ frame: CGRect,
+        for window: WindowToken,
+        tolerance: CGFloat = 4,
+        at timestamp: TimeInterval = ProcessInfo.processInfo.systemUptime
+    ) {
         var entry = entries[window] ?? Entry()
         entry.observed = frame
+        if let target = entry.target {
+            let isAtTarget = target.approximatelyEquals(frame, tolerance: tolerance)
+            if entry.wasAtTarget, !isAtTarget {
+                if let lastOverrideAt = entry.lastOverrideAt, timestamp - lastOverrideAt <= 3 {
+                    entry.overrides += 1
+                } else {
+                    entry.overrides = 1
+                }
+                entry.lastOverrideAt = timestamp
+                if entry.overrides >= 2 {
+                    entry.suppressesOverrides = true
+                    entry.desired = nil
+                    entry.retries = 0
+                }
+            }
+            entry.wasAtTarget = isAtTarget
+        }
         if entry.desired?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
+            entry.wasAtTarget = true
         }
         entries[window] = entry
     }
@@ -195,12 +235,16 @@ struct FrameLedger: Sendable {
               entry.inFlight?.approximatelyEquals(frame, tolerance: tolerance) == true
         else { return .none }
         entry.inFlight = nil
-        if let observed = result.observed { entry.observed = observed }
+        if let observed = result.observed {
+            entry.observed = observed
+            entry.wasAtTarget = entry.target?.approximatelyEquals(observed, tolerance: tolerance) == true
+        }
         if let desired = entry.desired,
            !desired.approximatelyEquals(frame, tolerance: tolerance) {
             if entry.observed?.approximatelyEquals(desired, tolerance: tolerance) == true {
                 entry.desired = nil
                 entry.retries = 0
+                entry.wasAtTarget = true
                 entries[window] = entry
                 return .none
             }
@@ -216,6 +260,7 @@ struct FrameLedger: Sendable {
         if result.succeeded || result.observed?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
+            entry.wasAtTarget = true
             entries[window] = entry
             return .none
         }

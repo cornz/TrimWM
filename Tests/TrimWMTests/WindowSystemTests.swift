@@ -147,6 +147,56 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertTrue(ledger.needsWrite(changedTarget, for: window))
     }
 
+    func testFrameLedgerStopsFightingRepeatedFastApplicationOverrides() {
+        let window = WindowToken(pid: 1, id: 2)
+        let original = CGRect(x: 0, y: 0, width: 524, height: 760)
+        let target = CGRect(x: 100, y: 0, width: 586, height: 704)
+        var ledger = FrameLedger()
+        ledger.observed(original, for: window, at: 0)
+
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+        XCTAssertEqual(
+            ledger.completed(target, for: window, result: .init(observed: target, succeeded: true)),
+            .none
+        )
+
+        ledger.observed(CGRect(x: 100, y: 0, width: 586, height: 480), for: window, at: 1)
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+        XCTAssertEqual(
+            ledger.completed(target, for: window, result: .init(observed: target, succeeded: true)),
+            .none
+        )
+
+        ledger.observed(CGRect(x: 100, y: 0, width: 586, height: 356), for: window, at: 2)
+        XCTAssertFalse(ledger.needsWrite(target, for: window))
+        ledger.observed(CGRect(x: 100, y: 0, width: 586, height: 400), for: window, at: 2.5)
+        XCTAssertFalse(ledger.needsWrite(target, for: window))
+
+        let changedTarget = CGRect(x: 100, y: 0, width: 700, height: 704)
+        XCTAssertTrue(ledger.needsWrite(changedTarget, for: window))
+    }
+
+    func testFrameLedgerStillCorrectsUnrelatedSlowApplicationOverrides() {
+        let window = WindowToken(pid: 1, id: 2)
+        let target = CGRect(x: 100, y: 0, width: 586, height: 704)
+        let override = CGRect(x: 100, y: 0, width: 586, height: 356)
+        var ledger = FrameLedger()
+
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+        XCTAssertEqual(
+            ledger.completed(target, for: window, result: .init(observed: target, succeeded: true)),
+            .none
+        )
+        ledger.observed(override, for: window, at: 1)
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+        XCTAssertEqual(
+            ledger.completed(target, for: window, result: .init(observed: target, succeeded: true)),
+            .none
+        )
+        ledger.observed(override, for: window, at: 10)
+        XCTAssertTrue(ledger.needsWrite(target, for: window))
+    }
+
     func testFrameLedgerIgnoresStaleWriteFailure() {
         let window = WindowToken(pid: 1, id: 2)
         var ledger = FrameLedger()
