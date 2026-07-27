@@ -5,6 +5,8 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.3.0] — 27 July 2026
+
 Bug fixes
 
 - Stop retrying the same rejected tile size when applications such as Slack
