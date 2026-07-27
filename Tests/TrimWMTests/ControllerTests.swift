@@ -14,6 +14,26 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(MenuToggleAction(isEnabled: true).title, "Disable")
     }
 
+    func testStatusMenuMetadataIncludesVersionAndChangelog() {
+        XCTAssertEqual(
+            AppMetadata.version(["CFBundleShortVersionString": "0.3.1"]),
+            "0.3.1"
+        )
+        XCTAssertEqual(AppMetadata.version([:]), "development")
+        XCTAssertEqual(
+            AppMetadata.menuTitle(status: "[1T]", error: nil, version: "0.3.1"),
+            "TrimWM 0.3.1 · [1T]"
+        )
+        XCTAssertEqual(
+            AppMetadata.menuTitle(status: "Paused", error: "Configuration failed", version: "0.3.1"),
+            "TrimWM 0.3.1 · Configuration failed"
+        )
+        XCTAssertEqual(
+            AppMetadata.changelogURL.absoluteString,
+            "https://github.com/cornz/TrimWM/blob/main/CHANGELOG.md"
+        )
+    }
+
     func testTrustLifecycleStartsOnceAndDisablesCleanly() {
         let harness = makeHarness(trusted: false)
         var statuses: [(String, String?)] = []

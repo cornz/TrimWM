@@ -5,6 +5,10 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+### Added
+
+- Show the installed version in the status menu and link directly to the changelog.
+
 ## [0.3.0] — 27 July 2026
 
 Bug fixes

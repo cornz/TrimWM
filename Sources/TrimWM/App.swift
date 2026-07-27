@@ -132,6 +132,18 @@ enum MenuToggleAction: Equatable {
     }
 }
 
+enum AppMetadata {
+    static func version(_ info: [String: Any]? = Bundle.main.infoDictionary) -> String {
+        info?["CFBundleShortVersionString"] as? String ?? "development"
+    }
+
+    static func menuTitle(status: String, error: String?, version: String) -> String {
+        "TrimWM \(version) · \(error ?? status)"
+    }
+
+    static let changelogURL = URL(string: "https://github.com/cornz/TrimWM/blob/main/CHANGELOG.md")!
+}
+
 @main
 @MainActor
 enum TrimWMMain {
@@ -176,9 +188,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func updateMenu(status: String, error: String?) {
+        let version = AppMetadata.version()
         statusItem?.button?.title = status
+        statusItem?.button?.toolTip = "TrimWM \(version)"
         let menu = NSMenu()
-        let state = NSMenuItem(title: error ?? "TrimWM · \(status)", action: nil, keyEquivalent: "")
+        let state = NSMenuItem(
+            title: AppMetadata.menuTitle(status: status, error: error, version: version),
+            action: nil,
+            keyEquivalent: ""
+        )
         state.isEnabled = false
         menu.addItem(state)
         menu.addItem(.separator())
@@ -192,6 +210,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Restore Hidden Windows", action: #selector(disable), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Accessibility Settings…", action: #selector(accessibility), keyEquivalent: "")
+        menu.addItem(withTitle: "Changelog…", action: #selector(changelog), keyEquivalent: "")
         menu.addItem(.separator())
         menu.addItem(withTitle: "Quit TrimWM", action: #selector(quit), keyEquivalent: "q")
         for item in menu.items { if item.action != nil { item.target = self } }
@@ -202,6 +221,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func disable() { controller?.disable() }
     @objc private func reload() { controller?.reload() }
     @objc private func accessibility() { controller?.openAccessibilitySettings() }
+    @objc private func changelog() { NSWorkspace.shared.open(AppMetadata.changelogURL) }
     @objc private func quit() { controller?.quit() }
 
     private func updateColumnDragFeedback(active: Bool, frame: CGRect?) {
