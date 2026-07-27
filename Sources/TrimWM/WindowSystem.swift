@@ -153,6 +153,7 @@ struct FrameLedger: Sendable {
         var target: CGRect?
         var wasAtTarget = false
         var overrides = 0
+        var lastOverrideFrame: CGRect?
         var lastOverrideAt: TimeInterval?
         var suppressesOverrides = false
     }
@@ -164,6 +165,7 @@ struct FrameLedger: Sendable {
             entry.target = frame
             entry.wasAtTarget = entry.observed?.approximatelyEquals(frame, tolerance: tolerance) == true
             entry.overrides = 0
+            entry.lastOverrideFrame = nil
             entry.lastOverrideAt = nil
             entry.suppressesOverrides = false
         }
@@ -203,11 +205,14 @@ struct FrameLedger: Sendable {
         if let target = entry.target {
             let isAtTarget = target.approximatelyEquals(frame, tolerance: tolerance)
             if entry.wasAtTarget, !isAtTarget {
-                if let lastOverrideAt = entry.lastOverrideAt, timestamp - lastOverrideAt <= 3 {
+                if let lastOverrideAt = entry.lastOverrideAt,
+                   timestamp - lastOverrideAt <= 3,
+                   entry.lastOverrideFrame?.approximatelyEquals(frame, tolerance: tolerance) == true {
                     entry.overrides += 1
                 } else {
                     entry.overrides = 1
                 }
+                entry.lastOverrideFrame = frame
                 entry.lastOverrideAt = timestamp
                 if entry.overrides >= 2 {
                     entry.suppressesOverrides = true

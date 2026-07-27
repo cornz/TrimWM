@@ -9,6 +9,10 @@ sections follow the concise release-note style used by AeroSpace.
 
 - Show the installed version in the status menu and link directly to the changelog.
 
+### Fixed
+
+- Keep snapping manually moved windows back to their tile while still tolerating applications that repeatedly enforce the same size.
+
 ## [0.3.0] — 27 July 2026
 
 Bug fixes
