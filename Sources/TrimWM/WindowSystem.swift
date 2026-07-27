@@ -150,7 +150,6 @@ struct FrameLedger: Sendable {
         var desired: CGRect?
         var inFlight: CGRect?
         var retries = 0
-        var suppressedAt: CGRect?
     }
     private var entries: [WindowToken: Entry] = [:]
 
@@ -162,13 +161,11 @@ struct FrameLedger: Sendable {
         if entry.observed?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
-            entry.suppressedAt = nil
             entries[window] = entry
             return false
         }
         entry.desired = frame
         entry.retries = 0
-        entry.suppressedAt = nil
         guard entry.inFlight == nil else {
             entries[window] = entry
             return false
@@ -184,12 +181,6 @@ struct FrameLedger: Sendable {
         if entry.desired?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
-            entry.suppressedAt = nil
-        } else if let suppressed = entry.suppressedAt,
-                  !suppressed.approximatelyEquals(frame, tolerance: tolerance) {
-            entry.desired = nil
-            entry.retries = 0
-            entry.suppressedAt = nil
         }
         entries[window] = entry
     }
@@ -210,7 +201,6 @@ struct FrameLedger: Sendable {
             if entry.observed?.approximatelyEquals(desired, tolerance: tolerance) == true {
                 entry.desired = nil
                 entry.retries = 0
-                entry.suppressedAt = nil
                 entries[window] = entry
                 return .none
             }
@@ -226,7 +216,6 @@ struct FrameLedger: Sendable {
         if result.succeeded || result.observed?.approximatelyEquals(frame, tolerance: tolerance) == true {
             entry.desired = nil
             entry.retries = 0
-            entry.suppressedAt = nil
             entries[window] = entry
             return .none
         }
@@ -236,7 +225,6 @@ struct FrameLedger: Sendable {
             entries[window] = entry
             return .write(frame)
         }
-        entry.suppressedAt = result.observed ?? entry.observed
         entries[window] = entry
         return .refused(result.observed)
     }

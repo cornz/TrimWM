@@ -5,6 +5,11 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+Bug fixes
+
+- Stop retrying the same rejected tile size when applications such as Slack
+  clamp a window to a maximum size or fixed aspect ratio.
+
 ## [0.2.31] — 26 July 2026
 
 New features

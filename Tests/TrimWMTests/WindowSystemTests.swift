@@ -123,7 +123,7 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertFalse(ledger.needsWrite(target, for: window))
     }
 
-    func testFrameLedgerRetriesOnceThenWaitsForNativeEvent() {
+    func testFrameLedgerKeepsRefusedTargetSuppressedAcrossNativeResizeEvents() {
         let window = WindowToken(pid: 1, id: 2)
         let original = CGRect(x: 10, y: 10, width: 300, height: 200)
         let target = CGRect(x: 100, y: 100, width: 600, height: 400)
@@ -135,8 +135,16 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertEqual(ledger.completed(target, for: window, result: failure), .refused(original))
         XCTAssertFalse(ledger.needsWrite(target, for: window))
 
-        ledger.observed(CGRect(x: 20, y: 10, width: 300, height: 200), for: window)
-        XCTAssertTrue(ledger.needsWrite(target, for: window))
+        for step in 1 ... 10 {
+            ledger.observed(
+                CGRect(x: 10 + step, y: 10, width: 300 + step, height: 200 + step),
+                for: window
+            )
+            XCTAssertFalse(ledger.needsWrite(target, for: window))
+        }
+
+        let changedTarget = CGRect(x: 100, y: 100, width: 500, height: 400)
+        XCTAssertTrue(ledger.needsWrite(changedTarget, for: window))
     }
 
     func testFrameLedgerIgnoresStaleWriteFailure() {
