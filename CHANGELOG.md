@@ -5,6 +5,13 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.4.0] — 19 August 2026
+
+Bug fixes
+
+- Ignore transient and unknown Accessibility windows so browser suggestion
+  popups do not receive the focus border or window-manager commands.
+
 ## [0.3.1] — 27 July 2026
 
 New features
@@ -116,7 +123,10 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.2.31...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/cornz/TrimWM/compare/v0.3.1...v0.4.0
+[0.3.1]: https://github.com/cornz/TrimWM/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/cornz/TrimWM/compare/v0.2.31...v0.3.0
 [0.2.31]: https://github.com/cornz/TrimWM/compare/v0.2.30...v0.2.31
 [0.2.30]: https://github.com/cornz/TrimWM/compare/v0.2.29...v0.2.30
 [0.2.29]: https://github.com/cornz/TrimWM/releases/tag/v0.2.29

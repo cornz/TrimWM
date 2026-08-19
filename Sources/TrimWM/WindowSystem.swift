@@ -31,11 +31,21 @@ struct WindowClassificationInput: Equatable, Sendable {
 }
 
 enum WindowClassifier {
-    static func classify(_ value: WindowClassificationInput) -> WindowDisposition {
+    static func classify(_ value: WindowClassificationInput, title: String = "") -> WindowDisposition {
         guard !value.minimized, !value.nativeFullscreen, value.movable else { return .unmanaged }
         guard value.role == (kAXWindowRole as String) else { return .unmanaged }
-        if value.subrole == (kAXStandardWindowSubrole as String), value.resizable { return .tiled }
-        return .floating
+        if value.subrole == (kAXStandardWindowSubrole as String) {
+            if value.resizable { return .tiled }
+            return title.isEmpty ? .unmanaged : .floating
+        }
+        if [
+            kAXDialogSubrole as String,
+            kAXSystemDialogSubrole as String,
+            kAXFloatingWindowSubrole as String,
+        ].contains(value.subrole) {
+            return .floating
+        }
+        return .unmanaged
     }
 }
 
@@ -470,6 +480,7 @@ private final class AXContext: @unchecked Sendable {
             var result: [AXWindowSnapshot] = []
             for element in elements {
                 guard let id = resolver.id(for: element), let frame = frame(of: element) else { continue }
+                let title = string(element, kAXTitleAttribute as String) ?? ""
                 let input = WindowClassificationInput(
                     role: string(element, kAXRoleAttribute as String),
                     subrole: string(element, kAXSubroleAttribute as String),
@@ -478,7 +489,7 @@ private final class AXContext: @unchecked Sendable {
                     minimized: boolean(element, kAXMinimizedAttribute as String) ?? false,
                     nativeFullscreen: boolean(element, "AXFullScreen") ?? false
                 )
-                let disposition = WindowClassifier.classify(input)
+                let disposition = WindowClassifier.classify(input, title: title)
                 guard disposition != .unmanaged else { continue }
                 let spaces = skyLight.windowSpaceIDs(id)
                 let onCurrentSpace = currentSpace.flatMap { active in spaces.flatMap { $0.isEmpty ? nil : $0.contains(active) } }
@@ -486,7 +497,7 @@ private final class AXContext: @unchecked Sendable {
                 result.append(AXWindowSnapshot(
                     token: WindowToken(pid: pid, id: id),
                     bundleID: bundleID,
-                    title: string(element, kAXTitleAttribute as String) ?? "",
+                    title: title,
                     frame: frame,
                     disposition: disposition,
                     isFocused: id == focusedID,

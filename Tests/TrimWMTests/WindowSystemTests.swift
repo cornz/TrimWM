@@ -57,15 +57,21 @@ final class WindowSystemTests: XCTestCase {
         )), .tiled)
     }
 
-    func testClassifierFloatsDialogsAndFixedSizeWindows() {
-        XCTAssertEqual(WindowClassifier.classify(.init(
-            role: kAXWindowRole as String,
-            subrole: kAXDialogSubrole as String,
-            movable: true,
-            resizable: true,
-            minimized: false,
-            nativeFullscreen: false
-        )), .floating)
+    func testClassifierFloatsDialogsFloatingWindowsAndFixedSizeWindows() {
+        for subrole in [
+            kAXDialogSubrole,
+            kAXSystemDialogSubrole,
+            kAXFloatingWindowSubrole,
+        ] {
+            XCTAssertEqual(WindowClassifier.classify(.init(
+                role: kAXWindowRole as String,
+                subrole: subrole as String,
+                movable: true,
+                resizable: true,
+                minimized: false,
+                nativeFullscreen: false
+            )), .floating)
+        }
         XCTAssertEqual(WindowClassifier.classify(.init(
             role: kAXWindowRole as String,
             subrole: kAXStandardWindowSubrole as String,
@@ -73,7 +79,32 @@ final class WindowSystemTests: XCTestCase {
             resizable: false,
             minimized: false,
             nativeFullscreen: false
-        )), .floating)
+        ), title: "Preferences"), .floating)
+    }
+
+    func testClassifierIgnoresTransientAndUnknownWindows() {
+        for subrole: String? in [
+            kAXUnknownSubrole as String,
+            kAXSystemFloatingWindowSubrole as String,
+            nil,
+        ] {
+            XCTAssertEqual(WindowClassifier.classify(.init(
+                role: kAXWindowRole as String,
+                subrole: subrole,
+                movable: true,
+                resizable: true,
+                minimized: false,
+                nativeFullscreen: false
+            )), .unmanaged)
+        }
+        XCTAssertEqual(WindowClassifier.classify(.init(
+            role: kAXWindowRole as String,
+            subrole: kAXStandardWindowSubrole as String,
+            movable: true,
+            resizable: false,
+            minimized: false,
+            nativeFullscreen: false
+        )), .unmanaged)
     }
 
     func testClassifierIgnoresMinimizedFullscreenAndNonWindowSurfaces() {
