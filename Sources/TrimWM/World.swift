@@ -115,6 +115,11 @@ struct WorkspaceState: Equatable, Sendable {
         minimumSizes: [WindowToken: CGSize] = [:]
     ) {
         guard windows.contains(window) else { return }
+        if let fullscreen,
+           window != fullscreen,
+           window.pid != fullscreen.pid || floating[window] == nil {
+            self.fullscreen = nil
+        }
         let changed = focused != window
         focused = window
         guard layout.windows.contains(window) else { return }

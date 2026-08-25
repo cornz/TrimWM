@@ -5,6 +5,13 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.4.1] — 25 August 2026
+
+Bug fixes
+
+- Leave WM-fullscreen when focus switches to a window that fullscreen would
+  otherwise hide.
+
 ## [0.4.0] — 19 August 2026
 
 Bug fixes
@@ -123,7 +130,8 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/cornz/TrimWM/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cornz/TrimWM/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cornz/TrimWM/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/cornz/TrimWM/compare/v0.2.31...v0.3.0

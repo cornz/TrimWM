@@ -152,6 +152,32 @@ final class ControllerTests: XCTestCase {
         harness.controller.execute(.nop)
     }
 
+    func testAppSwitchLeavesFullscreenAndRevealsFocusedWindow() {
+        let harness = makeHarness()
+        let fullscreen = WindowToken(pid: 40, id: 1)
+        let otherApplication = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = fullscreen.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(fullscreen.pid, [
+            snapshot(fullscreen, x: 0, focused: true),
+        ])])
+        harness.controller.handle([.windows(otherApplication.pid, [
+            snapshot(otherApplication, x: 500),
+        ])])
+        harness.windowSystem.liveFocused = fullscreen
+        harness.controller.execute(.fullscreen)
+        XCTAssertEqual(harness.controller.world.visible.fullscreen, fullscreen)
+
+        harness.environment.frontmostPID = otherApplication.pid
+        harness.controller.handle([.windows(otherApplication.pid, [
+            snapshot(otherApplication, x: 500, focused: true),
+        ])])
+
+        XCTAssertNil(harness.controller.world.visible.fullscreen)
+        XCTAssertEqual(harness.controller.world.visible.focused, otherApplication)
+        XCTAssertNotNil(harness.mouse.updates.last?.frames[otherApplication])
+    }
+
     func testWorkspaceFollowAndMouseEventsUseVisibleWindowsOnly() {
         let harness = makeHarness()
         let first = WindowToken(pid: 50, id: 1)

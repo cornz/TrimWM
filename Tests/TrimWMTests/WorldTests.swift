@@ -165,6 +165,47 @@ final class WorldTests: XCTestCase {
         ])
     }
 
+    func testFocusingObscuredWindowLeavesFullscreenInBothLayouts() {
+        for mode in [LayoutMode.autotile, .niri] {
+            var workspace = WorkspaceState()
+            let fullscreen = WindowToken(pid: 7, id: 1)
+            let otherApplication = WindowToken(pid: 8, id: 2)
+            workspace.add(fullscreen, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+            workspace.add(otherApplication, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+            workspace.changeLayout(to: mode, bounds: bounds, gaps: gaps, splitRatio: 1)
+            workspace.fullscreen = fullscreen
+
+            workspace.setFocus(otherApplication, bounds: bounds, gaps: gaps)
+
+            XCTAssertNil(workspace.fullscreen)
+            XCTAssertEqual(workspace.focused, otherApplication)
+            XCTAssertEqual(
+                Set(workspace.frames(bounds: bounds, gaps: gaps).keys),
+                [fullscreen, otherApplication]
+            )
+        }
+    }
+
+    func testFocusingSameApplicationOverlayKeepsFullscreen() {
+        var workspace = WorkspaceState()
+        let fullscreen = WindowToken(pid: 7, id: 1)
+        let overlay = WindowToken(pid: 7, id: 2)
+        workspace.add(fullscreen, floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        workspace.add(
+            overlay,
+            floating: CGRect(x: 100, y: 100, width: 300, height: 200),
+            bounds: bounds,
+            gaps: gaps,
+            splitRatio: 1
+        )
+        workspace.fullscreen = fullscreen
+
+        workspace.setFocus(overlay, bounds: bounds, gaps: gaps)
+
+        XCTAssertEqual(workspace.fullscreen, fullscreen)
+        XCTAssertEqual(workspace.focused, overlay)
+    }
+
     func testLeavingFullscreenRestoresTiledAndFloatingWindowFrames() {
         var workspace = WorkspaceState()
         let fullscreen = WindowToken(pid: 7, id: 1)
