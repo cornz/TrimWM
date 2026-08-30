@@ -338,6 +338,10 @@ final class WMController {
         let incoming = Set(windows.compactMap {
             $0.isOnScreen || journal.entries[$0.token] != nil ? $0.token : nil
         })
+        let focusedBeforeRemoval = world.visible.focused
+        let removedFocusedWindow = focusedBeforeRemoval.map {
+            previous.contains($0) && !incoming.contains($0)
+        } ?? false
         for token in previous where !incoming.contains(token) {
             native.removeValue(forKey: token)
             frameConstraints.remove(token)
@@ -385,6 +389,9 @@ final class WMController {
             }
         }
         applyLayout()
+        if removedFocusedWindow, let replacement = world.visible.focused {
+            windowSystem.focus(replacement)
+        }
     }
 
     private func applyLayout() {

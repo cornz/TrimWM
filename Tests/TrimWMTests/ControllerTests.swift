@@ -152,6 +152,41 @@ final class ControllerTests: XCTestCase {
         harness.controller.execute(.nop)
     }
 
+    func testClosingFocusedWindowFocusesRemainingWindow() {
+        let harness = makeHarness()
+        let codex = WindowToken(pid: 40, id: 1)
+        let edge = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = edge.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(codex.pid, [snapshot(codex, x: 0)])])
+        harness.controller.handle([.windows(edge.pid, [snapshot(edge, x: 500, focused: true)])])
+        XCTAssertEqual(harness.controller.world.visible.focused, edge)
+
+        harness.windowSystem.focused.removeAll()
+        harness.controller.handle([.windows(edge.pid, [])])
+
+        XCTAssertEqual(harness.controller.world.visible.focused, codex)
+        XCTAssertEqual(harness.windowSystem.focused, [codex])
+        XCTAssertEqual(harness.mouse.updates.last?.frames[codex]?.width, bounds.width)
+    }
+
+    func testClosingBackgroundWindowDoesNotStealFocus() {
+        let harness = makeHarness()
+        let codex = WindowToken(pid: 40, id: 1)
+        let edge = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = codex.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(edge.pid, [snapshot(edge, x: 500)])])
+        harness.controller.handle([.windows(codex.pid, [snapshot(codex, x: 0, focused: true)])])
+        XCTAssertEqual(harness.controller.world.visible.focused, codex)
+
+        harness.windowSystem.focused.removeAll()
+        harness.controller.handle([.windows(edge.pid, [])])
+
+        XCTAssertEqual(harness.controller.world.visible.focused, codex)
+        XCTAssertTrue(harness.windowSystem.focused.isEmpty)
+    }
+
     func testAppSwitchLeavesFullscreenAndRevealsFocusedWindow() {
         let harness = makeHarness()
         let fullscreen = WindowToken(pid: 40, id: 1)

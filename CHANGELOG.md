@@ -5,6 +5,12 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.5.0] — 30 August 2026
+
+Bug fixes
+
+- Focus the remaining visible window immediately after the focused window closes.
+
 ## [0.4.1] — 25 August 2026
 
 Bug fixes
@@ -130,7 +136,8 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/cornz/TrimWM/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/cornz/TrimWM/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cornz/TrimWM/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/cornz/TrimWM/compare/v0.3.0...v0.3.1
