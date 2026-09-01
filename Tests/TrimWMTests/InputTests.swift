@@ -14,6 +14,74 @@ final class InputTests: XCTestCase {
         let plan = try HotKeyPlanner.plan(Binding(chord: "ctrl+enter", command: .nop))
         XCTAssertEqual(plan.keyCode, UInt32(kVK_Return))
         XCTAssertEqual(plan.modifiers, UInt32(controlKey))
+        XCTAssertTrue(plan.sidedModifiers.isEmpty)
+    }
+
+    func testPlansLeftAndRightModifierAliases() throws {
+        let rightCommand = try HotKeyPlanner.plan(Binding(
+            chord: "right-command+w",
+            command: .execute("open -a Warp")
+        ))
+        XCTAssertEqual(rightCommand.keyCode, UInt32(kVK_ANSI_W))
+        XCTAssertEqual(rightCommand.modifiers, UInt32(cmdKey))
+        XCTAssertEqual(rightCommand.sidedModifiers, [.rightCommand])
+
+        let mixed = try HotKeyPlanner.plan(Binding(
+            chord: "left-option+right-shift+left-control+x",
+            command: .nop
+        ))
+        XCTAssertEqual(mixed.modifiers, UInt32(optionKey | shiftKey | controlKey))
+        XCTAssertEqual(mixed.sidedModifiers, [.leftOption, .rightShift, .leftControl])
+    }
+
+    func testSidedMatcherRequiresOnlyTheConfiguredSide() throws {
+        let left = try HotKeyPlanner.plan(Binding(chord: "left-cmd+w", command: .nop))
+        let right = try HotKeyPlanner.plan(Binding(
+            chord: "right-cmd+w",
+            command: .execute("open -a Warp")
+        ))
+        let plans = [left, right]
+
+        XCTAssertEqual(
+            SidedHotKeyMatcher.match(
+                keyCode: UInt32(kVK_ANSI_W),
+                modifiers: UInt32(cmdKey),
+                state: ModifierKeyState(pressed: [.rightCommand]),
+                plans: plans
+            )?.command,
+            .execute("open -a Warp")
+        )
+        XCTAssertEqual(
+            SidedHotKeyMatcher.match(
+                keyCode: UInt32(kVK_ANSI_W),
+                modifiers: UInt32(cmdKey),
+                state: ModifierKeyState(pressed: [.leftCommand]),
+                plans: plans
+            )?.command,
+            .nop
+        )
+        XCTAssertNil(SidedHotKeyMatcher.match(
+            keyCode: UInt32(kVK_ANSI_W),
+            modifiers: UInt32(cmdKey),
+            state: ModifierKeyState(pressed: [.leftCommand, .rightCommand]),
+            plans: plans
+        ))
+        XCTAssertNil(SidedHotKeyMatcher.match(
+            keyCode: UInt32(kVK_ANSI_W),
+            modifiers: UInt32(cmdKey | shiftKey),
+            state: ModifierKeyState(pressed: [.rightCommand, .leftShift]),
+            plans: plans
+        ))
+    }
+
+    func testGenericAndSidedPlansConflictButOppositeSidesDoNot() throws {
+        let generic = try HotKeyPlanner.plan(Binding(chord: "cmd+w", command: .nop))
+        let left = try HotKeyPlanner.plan(Binding(chord: "left-cmd+w", command: .nop))
+        let right = try HotKeyPlanner.plan(Binding(chord: "right-cmd+w", command: .nop))
+
+        XCTAssertTrue(generic.conflicts(with: left))
+        XCTAssertTrue(generic.conflicts(with: right))
+        XCTAssertFalse(left.conflicts(with: right))
     }
 
     func testPlansConsumeAndExpelPunctuationHotkeys() throws {
@@ -38,6 +106,7 @@ final class InputTests: XCTestCase {
     func testRejectsUnsupportedModifierAndKey() {
         XCTAssertThrowsError(try HotKeyPlanner.plan(Binding(chord: "hyper+j", command: .nop)))
         XCTAssertThrowsError(try HotKeyPlanner.plan(Binding(chord: "alt+f24", command: .nop)))
+        XCTAssertThrowsError(try HotKeyPlanner.plan(Binding(chord: "cmd+right-cmd+w", command: .nop)))
     }
 
     func testMouseBoundaryFocusesExactlyOnceAndUsesFrontmostOverlap() {

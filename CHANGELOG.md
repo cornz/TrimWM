@@ -5,6 +5,13 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.6.0] — 1 September 2026
+
+New features
+
+- Open the configuration from the status menu with the default text editor.
+- Address the left or right physical modifier key in hotkey bindings.
+
 ## [0.5.0] — 30 August 2026
 
 Bug fixes
@@ -136,7 +143,8 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/cornz/TrimWM/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cornz/TrimWM/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/cornz/TrimWM/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/cornz/TrimWM/compare/v0.3.1...v0.4.0

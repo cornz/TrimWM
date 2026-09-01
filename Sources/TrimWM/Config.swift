@@ -63,13 +63,13 @@ enum ConfigValidator {
             }
         }
         for (mode, bindings) in config.bindings {
-            var chords: Set<String> = []
+            var plans: [HotKeyPlan] = []
             for binding in bindings {
                 let plan = try HotKeyPlanner.plan(binding)
-                let chord = "\(plan.modifiers):\(plan.keyCode)"
-                guard chords.insert(chord).inserted else {
+                guard !plans.contains(where: { $0.conflicts(with: plan) }) else {
                     throw ConfigValidationError.message("duplicate binding \(binding.chord) in mode \(mode)")
                 }
+                plans.append(plan)
                 switch binding.command {
                 case let .workspace(index), let .moveToWorkspace(index, _):
                     guard (1...config.workspaceCount).contains(index) else {

@@ -104,6 +104,12 @@ final class ConfigTests: XCTestCase {
         duplicate = try ConfigParser.parse("bindsym alt+j focus left\nbindsym option+j focus right")
         XCTAssertThrowsError(try ConfigValidator.validate(duplicate))
 
+        duplicate = try ConfigParser.parse("bindsym cmd+w nop\nbindsym right-cmd+w launch open -a Warp")
+        XCTAssertThrowsError(try ConfigValidator.validate(duplicate))
+
+        let separateSides = try ConfigParser.parse("bindsym left-cmd+w nop\nbindsym right-cmd+w launch open -a Warp")
+        XCTAssertNoThrow(try ConfigValidator.validate(separateSides))
+
         XCTAssertThrowsError(try ConfigValidator.validate(try ConfigParser.parse("workspace-count 9")))
     }
 

@@ -111,7 +111,9 @@ certificate is a different identity and requires one fresh grant.
 
 The config path is `~/.config/trimwm/config`. If it is absent, TrimWM uses
 the built-in default. [Examples/config](Examples/config) contains the complete
-shipped configuration and migrated app rules.
+shipped configuration and migrated app rules. **Open Configuration…** in the
+status menu creates this file when needed and opens it with the default text
+editor.
 
 The syntax is deliberately a small i3/Sway-style command language rather than
 TOML or KDL. The parser supports only variables, gaps, layout options, border
@@ -137,6 +139,18 @@ Default highlights:
 - `Option+right-drag`: resize the window under the pointer
 - `Option+left-drag`: move a whole Niri column, or swap two BSP window slots
 - `Option+Shift+C`: reload configuration
+
+Bindings can address one physical modifier side with `left-` or `right-`.
+This works for `cmd`, `shift`, `ctrl`, `alt`, and their long aliases. For
+example, this binding starts Warp or brings it to the front only when the
+right Command key is held:
+
+```text
+bindsym right-cmd+w launch open -a Warp
+```
+
+`cmd+w` without a side continues to match either Command key. A generic and a
+side-specific binding for the same chord cannot be used together.
 
 Consume requires an adjacent column in the chosen direction. Expel requires at
 least two windows in the focused column; it then creates a new column in the

@@ -2,12 +2,54 @@
 import CoreGraphics
 import Foundation
 
-enum HotKeyError: Error, Equatable { case invalidChord(String), unsupportedKey(String), carbon(OSStatus) }
+enum HotKeyError: Error, Equatable {
+    case invalidChord(String), unsupportedKey(String), carbon(OSStatus), eventTap
+}
+
+enum ModifierFamily: Hashable, Sendable { case option, shift, control, command }
+
+enum SidedModifier: Hashable, Sendable {
+    case leftOption, rightOption, leftShift, rightShift
+    case leftControl, rightControl, leftCommand, rightCommand
+
+    var family: ModifierFamily {
+        switch self {
+        case .leftOption, .rightOption: .option
+        case .leftShift, .rightShift: .shift
+        case .leftControl, .rightControl: .control
+        case .leftCommand, .rightCommand: .command
+        }
+    }
+
+    var opposite: SidedModifier {
+        switch self {
+        case .leftOption: .rightOption
+        case .rightOption: .leftOption
+        case .leftShift: .rightShift
+        case .rightShift: .leftShift
+        case .leftControl: .rightControl
+        case .rightControl: .leftControl
+        case .leftCommand: .rightCommand
+        case .rightCommand: .leftCommand
+        }
+    }
+}
 
 struct HotKeyPlan: Equatable, Sendable {
     let keyCode: UInt32
     let modifiers: UInt32
+    let sidedModifiers: Set<SidedModifier>
     let command: WMCommand
+
+    func conflicts(with other: HotKeyPlan) -> Bool {
+        guard keyCode == other.keyCode, modifiers == other.modifiers else { return false }
+        for family in [ModifierFamily.option, .shift, .control, .command] {
+            let ownSide = sidedModifiers.first { $0.family == family }
+            let otherSide = other.sidedModifiers.first { $0.family == family }
+            if let ownSide, let otherSide, ownSide != otherSide { return false }
+        }
+        return true
+    }
 }
 
 enum HotKeyPlanner {
@@ -15,17 +57,38 @@ enum HotKeyPlanner {
         let parts = binding.chord.split(separator: "+").map { $0.lowercased() }
         guard let key = parts.last, !key.isEmpty else { throw HotKeyError.invalidChord(binding.chord) }
         var modifiers: UInt32 = 0
+        var modifierFamilies: Set<ModifierFamily> = []
+        var sidedModifiers: Set<SidedModifier> = []
         for modifier in parts.dropLast() {
+            let parsed: (family: ModifierFamily, carbon: UInt32, side: SidedModifier?)
             switch modifier {
-            case "alt", "option": modifiers |= UInt32(optionKey)
-            case "shift": modifiers |= UInt32(shiftKey)
-            case "ctrl", "control": modifiers |= UInt32(controlKey)
-            case "cmd", "command": modifiers |= UInt32(cmdKey)
+            case "alt", "option": parsed = (.option, UInt32(optionKey), nil)
+            case "left-alt", "left-option": parsed = (.option, UInt32(optionKey), .leftOption)
+            case "right-alt", "right-option": parsed = (.option, UInt32(optionKey), .rightOption)
+            case "shift": parsed = (.shift, UInt32(shiftKey), nil)
+            case "left-shift": parsed = (.shift, UInt32(shiftKey), .leftShift)
+            case "right-shift": parsed = (.shift, UInt32(shiftKey), .rightShift)
+            case "ctrl", "control": parsed = (.control, UInt32(controlKey), nil)
+            case "left-ctrl", "left-control": parsed = (.control, UInt32(controlKey), .leftControl)
+            case "right-ctrl", "right-control": parsed = (.control, UInt32(controlKey), .rightControl)
+            case "cmd", "command": parsed = (.command, UInt32(cmdKey), nil)
+            case "left-cmd", "left-command": parsed = (.command, UInt32(cmdKey), .leftCommand)
+            case "right-cmd", "right-command": parsed = (.command, UInt32(cmdKey), .rightCommand)
             default: throw HotKeyError.invalidChord(binding.chord)
             }
+            guard modifierFamilies.insert(parsed.family).inserted else {
+                throw HotKeyError.invalidChord(binding.chord)
+            }
+            modifiers |= parsed.carbon
+            if let side = parsed.side { sidedModifiers.insert(side) }
         }
         guard let code = keyCodes[String(key)] else { throw HotKeyError.unsupportedKey(String(key)) }
-        return HotKeyPlan(keyCode: code, modifiers: modifiers, command: binding.command)
+        return HotKeyPlan(
+            keyCode: code,
+            modifiers: modifiers,
+            sidedModifiers: sidedModifiers,
+            command: binding.command
+        )
     }
 
     private static let keyCodes: [String: UInt32] = [
@@ -44,6 +107,50 @@ enum HotKeyPlanner {
     ]
 }
 
+struct ModifierKeyState: Equatable, Sendable {
+    var pressed: Set<SidedModifier> = []
+
+    func contains(_ modifier: SidedModifier) -> Bool { pressed.contains(modifier) }
+
+    static func current() -> ModifierKeyState {
+        let source = CGEventSourceStateID.combinedSessionState
+        let pairs: [(SidedModifier, Int)] = [
+            (.leftOption, kVK_Option), (.rightOption, kVK_RightOption),
+            (.leftShift, kVK_Shift), (.rightShift, kVK_RightShift),
+            (.leftControl, kVK_Control), (.rightControl, kVK_RightControl),
+            (.leftCommand, kVK_Command), (.rightCommand, kVK_RightCommand),
+        ]
+        return ModifierKeyState(pressed: Set(pairs.compactMap { modifier, keyCode in
+            CGEventSource.keyState(source, key: CGKeyCode(keyCode)) ? modifier : nil
+        }))
+    }
+}
+
+enum SidedHotKeyMatcher {
+    static func match(
+        keyCode: UInt32,
+        modifiers: UInt32,
+        state: ModifierKeyState,
+        plans: [HotKeyPlan]
+    ) -> HotKeyPlan? {
+        plans.first { plan in
+            guard plan.keyCode == keyCode, plan.modifiers == modifiers else { return false }
+            return plan.sidedModifiers.allSatisfy {
+                state.contains($0) && !state.contains($0.opposite)
+            }
+        }
+    }
+
+    static func carbonModifiers(from flags: CGEventFlags) -> UInt32 {
+        var modifiers: UInt32 = 0
+        if flags.contains(.maskAlternate) { modifiers |= UInt32(optionKey) }
+        if flags.contains(.maskShift) { modifiers |= UInt32(shiftKey) }
+        if flags.contains(.maskControl) { modifiers |= UInt32(controlKey) }
+        if flags.contains(.maskCommand) { modifiers |= UInt32(cmdKey) }
+        return modifiers
+    }
+}
+
 private func TrimWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, userData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let event, let userData else { return OSStatus(eventNotHandledErr) }
     var id = EventHotKeyID()
@@ -53,12 +160,30 @@ private func TrimWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, user
     return noErr
 }
 
+private func TrimWMSidedHotKeyHandler(
+    _: CGEventTapProxy,
+    type: CGEventType,
+    event: CGEvent,
+    userInfo: UnsafeMutableRawPointer?
+) -> Unmanaged<CGEvent>? {
+    guard let userInfo else { return Unmanaged.passUnretained(event) }
+    let manager = Unmanaged<HotKeyManager>.fromOpaque(userInfo).takeUnretainedValue()
+    if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+        manager.reenableSidedTap()
+        return Unmanaged.passUnretained(event)
+    }
+    return manager.handleSided(event) ? nil : Unmanaged.passUnretained(event)
+}
+
 final class HotKeyManager: @unchecked Sendable {
     var onCommand: (@Sendable (WMCommand) -> Void)?
     private var handler: EventHandlerRef?
     private var references: [EventHotKeyRef] = []
     private var commands: [UInt32: WMCommand] = [:]
     private var plans: [HotKeyPlan] = []
+    private var sidedPlans: [HotKeyPlan] = []
+    private var sidedTap: CFMachPort?
+    private var sidedSource: CFRunLoopSource?
     private var handlerStatus: OSStatus = noErr
 
     init() {
@@ -68,6 +193,7 @@ final class HotKeyManager: @unchecked Sendable {
 
     deinit {
         references.forEach { UnregisterEventHotKey($0) }
+        stopSidedTap()
         if let handler { RemoveEventHandler(handler) }
     }
 
@@ -76,9 +202,7 @@ final class HotKeyManager: @unchecked Sendable {
         let requested = try bindings.map(HotKeyPlanner.plan)
         guard requested != plans else { return }
         let previous = plans
-        references.forEach { UnregisterEventHotKey($0) }
-        references.removeAll()
-        commands.removeAll()
+        removeRegistrations()
         do {
             let installed = try install(requested)
             references = installed.0
@@ -95,16 +219,15 @@ final class HotKeyManager: @unchecked Sendable {
     }
 
     func unregister() {
-        references.forEach { UnregisterEventHotKey($0) }
-        references.removeAll()
-        commands.removeAll()
+        removeRegistrations()
         plans.removeAll()
     }
 
     private func install(_ plans: [HotKeyPlan]) throws -> ([EventHotKeyRef], [UInt32: WMCommand]) {
         var newReferences: [EventHotKeyRef] = []
         var newCommands: [UInt32: WMCommand] = [:]
-        for (offset, plan) in plans.enumerated() {
+        let carbonPlans = plans.filter { $0.sidedModifiers.isEmpty }
+        for (offset, plan) in carbonPlans.enumerated() {
             let id = UInt32(offset + 1)
             var reference: EventHotKeyRef?
             let status = RegisterEventHotKey(plan.keyCode, plan.modifiers, EventHotKeyID(signature: 0x43575A32, id: id), GetApplicationEventTarget(), 0, &reference)
@@ -115,11 +238,68 @@ final class HotKeyManager: @unchecked Sendable {
             newReferences.append(reference)
             newCommands[id] = plan.command
         }
+        let requestedSidedPlans = plans.filter { !$0.sidedModifiers.isEmpty }
+        if !requestedSidedPlans.isEmpty {
+            guard startSidedTap() else {
+                newReferences.forEach { UnregisterEventHotKey($0) }
+                throw HotKeyError.eventTap
+            }
+        }
+        sidedPlans = requestedSidedPlans
         return (newReferences, newCommands)
+    }
+
+    private func removeRegistrations() {
+        references.forEach { UnregisterEventHotKey($0) }
+        references.removeAll()
+        commands.removeAll()
+        sidedPlans.removeAll()
+        stopSidedTap()
+    }
+
+    private func startSidedTap() -> Bool {
+        guard sidedTap == nil else { return true }
+        let events = CGEventMask(1 << CGEventType.keyDown.rawValue)
+        sidedTap = CGEvent.tapCreate(
+            tap: .cgSessionEventTap,
+            place: .headInsertEventTap,
+            options: .defaultTap,
+            eventsOfInterest: events,
+            callback: TrimWMSidedHotKeyHandler,
+            userInfo: Unmanaged.passUnretained(self).toOpaque()
+        )
+        guard let sidedTap else { return false }
+        sidedSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, sidedTap, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), sidedSource, .commonModes)
+        CGEvent.tapEnable(tap: sidedTap, enable: true)
+        return true
+    }
+
+    private func stopSidedTap() {
+        if let sidedSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), sidedSource, .commonModes) }
+        sidedSource = nil
+        sidedTap = nil
     }
 
     fileprivate func fire(_ id: UInt32) {
         if let command = commands[id] { onCommand?(command) }
+    }
+
+    fileprivate func handleSided(_ event: CGEvent) -> Bool {
+        let keyCode = UInt32(event.getIntegerValueField(.keyboardEventKeycode))
+        let modifiers = SidedHotKeyMatcher.carbonModifiers(from: event.flags)
+        guard let plan = SidedHotKeyMatcher.match(
+            keyCode: keyCode,
+            modifiers: modifiers,
+            state: .current(),
+            plans: sidedPlans
+        ) else { return false }
+        onCommand?(plan.command)
+        return true
+    }
+
+    fileprivate func reenableSidedTap() {
+        if let sidedTap { CGEvent.tapEnable(tap: sidedTap, enable: true) }
     }
 }
 

@@ -206,6 +206,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         case .disable: #selector(disable)
         }
         menu.addItem(withTitle: toggle.title, action: toggleSelector, keyEquivalent: "")
+        menu.addItem(withTitle: "Open Configuration…", action: #selector(openConfig), keyEquivalent: "")
         menu.addItem(withTitle: "Reload Configuration", action: #selector(reload), keyEquivalent: "r")
         menu.addItem(withTitle: "Restore Hidden Windows", action: #selector(disable), keyEquivalent: "")
         menu.addItem(.separator())
@@ -219,6 +220,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func enable() { controller?.enable() }
     @objc private func disable() { controller?.disable() }
+    @objc private func openConfig() { controller?.openConfig() }
     @objc private func reload() { controller?.reload() }
     @objc private func accessibility() { controller?.openAccessibilitySettings() }
     @objc private func changelog() { NSWorkspace.shared.open(AppMetadata.changelogURL) }

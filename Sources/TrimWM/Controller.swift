@@ -90,6 +90,7 @@ struct ControllerEnvironment {
     var displayBounds: () -> [CGRect]
     var frontmostPID: () -> pid_t?
     var runShell: (String) throws -> Void
+    var openTextFile: (URL) throws -> Void
     var openAccessibilitySettings: () -> Void
     var terminate: () -> Void
 
@@ -104,6 +105,12 @@ struct ControllerEnvironment {
                 let process = Process()
                 process.executableURL = URL(fileURLWithPath: "/bin/zsh")
                 process.arguments = ["-lc", command]
+                try process.run()
+            },
+            openTextFile: { url in
+                let process = Process()
+                process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+                process.arguments = ["-t", url.path]
                 try process.run()
             },
             openAccessibilitySettings: {
@@ -278,6 +285,21 @@ final class WMController {
 
     func openAccessibilitySettings() {
         environment.openAccessibilitySettings()
+    }
+
+    func openConfig() {
+        do {
+            if !FileManager.default.fileExists(atPath: configURL.path) {
+                try FileManager.default.createDirectory(
+                    at: configURL.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                try Self.defaultConfig.write(to: configURL, atomically: true, encoding: .utf8)
+            }
+            try environment.openTextFile(configURL)
+        } catch {
+            publish(error: "Open configuration: \(error.localizedDescription)")
+        }
     }
 
     func handle(_ pending: [WMEvent]) {

@@ -34,6 +34,24 @@ final class ControllerTests: XCTestCase {
         )
     }
 
+    func testOpenConfigCreatesDefaultOnceAndUsesTextEditor() throws {
+        let harness = makeHarness()
+
+        harness.controller.openConfig()
+
+        XCTAssertEqual(harness.environment.openedTextFiles, [harness.configURL])
+        XCTAssertEqual(
+            try String(contentsOf: harness.configURL, encoding: .utf8),
+            WMController.defaultConfig
+        )
+
+        try "custom config".write(to: harness.configURL, atomically: true, encoding: .utf8)
+        harness.controller.openConfig()
+
+        XCTAssertEqual(harness.environment.openedTextFiles, [harness.configURL, harness.configURL])
+        XCTAssertEqual(try String(contentsOf: harness.configURL, encoding: .utf8), "custom config")
+    }
+
     func testTrustLifecycleStartsOnceAndDisablesCleanly() {
         let harness = makeHarness(trusted: false)
         var statuses: [(String, String?)] = []
@@ -594,6 +612,7 @@ private final class TestControllerEnvironment {
     var accessibilityOpenCount = 0
     var terminateCount = 0
     var shellCommands: [String] = []
+    var openedTextFiles: [URL] = []
     var shellError: Error?
     let bounds: CGRect
 
@@ -613,6 +632,7 @@ private final class TestControllerEnvironment {
                 self.shellCommands.append(command)
                 if let shellError = self.shellError { throw shellError }
             },
+            openTextFile: { self.openedTextFiles.append($0) },
             openAccessibilitySettings: { self.accessibilityOpenCount += 1 },
             terminate: { self.terminateCount += 1 }
         )
