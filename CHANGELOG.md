@@ -5,6 +5,12 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.6.1] — 1 September 2026
+
+Bug fixes
+
+- Detect physical modifier sides from each keyboard event so right-side hotkeys trigger reliably.
+
 ## [0.6.0] — 1 September 2026
 
 New features
@@ -143,7 +149,8 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/cornz/TrimWM/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cornz/TrimWM/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cornz/TrimWM/compare/v0.4.1...v0.5.0
 [0.4.1]: https://github.com/cornz/TrimWM/compare/v0.4.0...v0.4.1

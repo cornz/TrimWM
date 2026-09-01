@@ -74,6 +74,21 @@ final class InputTests: XCTestCase {
         ))
     }
 
+    func testReadsPhysicalModifierSidesFromEventFlags() {
+        let raw = UInt64(NX_DEVICERCMDKEYMASK)
+            | UInt64(NX_DEVICELALTKEYMASK)
+            | UInt64(NX_DEVICERSHIFTKEYMASK)
+            | UInt64(NX_DEVICELCTLKEYMASK)
+        let state = ModifierKeyState(flags: CGEventFlags(rawValue: raw))
+
+        XCTAssertEqual(state.pressed, [
+            .rightCommand,
+            .leftOption,
+            .rightShift,
+            .leftControl,
+        ])
+    }
+
     func testGenericAndSidedPlansConflictButOppositeSidesDoNot() throws {
         let generic = try HotKeyPlanner.plan(Binding(chord: "cmd+w", command: .nop))
         let left = try HotKeyPlanner.plan(Binding(chord: "left-cmd+w", command: .nop))

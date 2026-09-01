@@ -112,17 +112,25 @@ struct ModifierKeyState: Equatable, Sendable {
 
     func contains(_ modifier: SidedModifier) -> Bool { pressed.contains(modifier) }
 
-    static func current() -> ModifierKeyState {
-        let source = CGEventSourceStateID.combinedSessionState
-        let pairs: [(SidedModifier, Int)] = [
-            (.leftOption, kVK_Option), (.rightOption, kVK_RightOption),
-            (.leftShift, kVK_Shift), (.rightShift, kVK_RightShift),
-            (.leftControl, kVK_Control), (.rightControl, kVK_RightControl),
-            (.leftCommand, kVK_Command), (.rightCommand, kVK_RightCommand),
+    init(pressed: Set<SidedModifier> = []) {
+        self.pressed = pressed
+    }
+
+    init(flags: CGEventFlags) {
+        let raw = UInt32(truncatingIfNeeded: flags.rawValue)
+        let pairs: [(SidedModifier, UInt32)] = [
+            (.leftOption, UInt32(NX_DEVICELALTKEYMASK)),
+            (.rightOption, UInt32(NX_DEVICERALTKEYMASK)),
+            (.leftShift, UInt32(NX_DEVICELSHIFTKEYMASK)),
+            (.rightShift, UInt32(NX_DEVICERSHIFTKEYMASK)),
+            (.leftControl, UInt32(NX_DEVICELCTLKEYMASK)),
+            (.rightControl, UInt32(NX_DEVICERCTLKEYMASK)),
+            (.leftCommand, UInt32(NX_DEVICELCMDKEYMASK)),
+            (.rightCommand, UInt32(NX_DEVICERCMDKEYMASK)),
         ]
-        return ModifierKeyState(pressed: Set(pairs.compactMap { modifier, keyCode in
-            CGEventSource.keyState(source, key: CGKeyCode(keyCode)) ? modifier : nil
-        }))
+        pressed = Set(pairs.compactMap { modifier, mask in
+            raw & mask != 0 ? modifier : nil
+        })
     }
 }
 
@@ -291,7 +299,7 @@ final class HotKeyManager: @unchecked Sendable {
         guard let plan = SidedHotKeyMatcher.match(
             keyCode: keyCode,
             modifiers: modifiers,
-            state: .current(),
+            state: ModifierKeyState(flags: event.flags),
             plans: sidedPlans
         ) else { return false }
         onCommand?(plan.command)
