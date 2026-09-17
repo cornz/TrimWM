@@ -5,6 +5,20 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.7.0] — 17 September 2026
+
+New features
+
+- Add `border radius auto` to match macOS 27's uniform window corners,
+  accounting for border width. Keep numeric radius overrides and the previous
+  automatic appearance on macOS 26. Existing configurations can opt in by
+  replacing `border radius 9` with `border radius auto`.
+
+Bug fixes
+
+- Let floating windows keep manual position and size changes instead of
+  snapping back to their previous frame.
+
 ## [0.6.1] — 1 September 2026
 
 Bug fixes

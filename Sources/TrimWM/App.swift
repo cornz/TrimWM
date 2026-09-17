@@ -1,6 +1,13 @@
 import AppKit
 
 enum FocusBorderGeometry {
+    static func cornerRadius(configured: CGFloat?, strokeWidth: CGFloat, macOSMajorVersion: Int) -> CGFloat {
+        if let configured { return configured }
+        // The panel expands by the stroke width. Keep its inner edge aligned
+        // with macOS 27's uniform 16-point window corners.
+        return macOSMajorVersion >= 27 ? 16 + strokeWidth : 9
+    }
+
     static func strokeWidth(configured: CGFloat, scale: CGFloat, minimum: CGFloat) -> CGFloat {
         max(minimum, configured * scale)
     }
@@ -60,7 +67,11 @@ final class FocusBorder {
         let color = style.color.nsColor
         content.layer?.borderColor = color.cgColor
         content.layer?.borderWidth = strokeWidth
-        content.layer?.cornerRadius = style.radius
+        content.layer?.cornerRadius = FocusBorderGeometry.cornerRadius(
+            configured: style.radius,
+            strokeWidth: strokeWidth,
+            macOSMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        )
         content.layer?.backgroundColor = color.withAlphaComponent(fillOpacity).cgColor
         update(targetFrame)
     }

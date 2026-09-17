@@ -3,6 +3,27 @@ import XCTest
 @testable import TrimWM
 
 final class GeometryTests: XCTestCase {
+    func testAutomaticBorderCornersStayAlignedForFocusAndThickerDragBorders() {
+        for width: CGFloat in [0, 2, 4, 6] {
+            let radius = FocusBorderGeometry.cornerRadius(
+                configured: nil, strokeWidth: width, macOSMajorVersion: 27
+            )
+            XCTAssertEqual(radius - width, 16)
+        }
+    }
+
+    func testBorderCornersPreserveLegacyAppearanceAndExplicitOverrides() {
+        XCTAssertEqual(FocusBorderGeometry.cornerRadius(configured: nil, strokeWidth: 2, macOSMajorVersion: 26), 9)
+        for version in [26, 27] {
+            for radius: CGFloat in [0, 9, 12] {
+                XCTAssertEqual(
+                    FocusBorderGeometry.cornerRadius(configured: radius, strokeWidth: 4, macOSMajorVersion: version),
+                    radius
+                )
+            }
+        }
+    }
+
     func testFocusBorderConvertsTopLeftWindowCoordinatesToAppKit() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let window = CGRect(x: -2, y: 28, width: 964, height: 970)

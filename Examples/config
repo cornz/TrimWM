@@ -10,7 +10,7 @@ focus-follows-mouse true
 start-at-login true
 border color accent
 border width 2
-border radius 9
+border radius auto
 
 bindsym $mod+j focus left
 bindsym $mod+k focus down

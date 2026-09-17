@@ -32,7 +32,8 @@ enum BorderColor: Equatable, Sendable {
 struct BorderStyle: Equatable, Sendable {
     var color: BorderColor = .accent
     var width: CGFloat = 2
-    var radius: CGFloat = 9
+    // nil follows the system default; numeric values remain explicit outer radii.
+    var radius: CGFloat? = nil
 }
 
 struct WMConfig: Equatable, Sendable {
@@ -162,6 +163,10 @@ enum ConfigParser {
                     }
                     config.border.width = value
                 case "radius":
+                    if fields[2] == "auto" {
+                        config.border.radius = nil
+                        break
+                    }
                     guard let value = Double(fields[2]), value.isFinite, value >= 0 else {
                         throw ConfigError.line(number, "invalid border radius")
                     }

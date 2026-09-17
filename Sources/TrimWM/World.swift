@@ -271,6 +271,14 @@ struct World: Equatable, Sendable {
         if workspaces.indices.contains(workspace - 1) { visibleWorkspace = workspace }
     }
 
+    mutating func updateVisibleFloatingFrame(_ frame: CGRect, for window: WindowToken) {
+        let index = visibleWorkspace - 1
+        guard workspaces[index].floating[window] != nil else { return }
+        if let fullscreen = workspaces[index].fullscreen,
+           window == fullscreen || window.pid != fullscreen.pid { return }
+        workspaces[index].floating[window] = frame
+    }
+
     mutating func setNiriSingleWindowFullWidth(_ enabled: Bool) {
         for index in workspaces.indices {
             guard case var .niri(layout) = workspaces[index].layout else { continue }

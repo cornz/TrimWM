@@ -331,6 +331,7 @@ final class WMController {
     private func accept(frame: CGRect, for window: WindowToken) {
         guard isEnabled, let snapshot = native[window] else { return }
         snapshot.frame = frame
+        acceptFloatingFrame(snapshot)
         ledger.observed(frame, for: window)
         let bounds = environment.mainScreenBounds()
         let isManaged = world.workspace(of: window) != nil
@@ -392,6 +393,7 @@ final class WMController {
                           bounds: bounds, gaps: config.gaps, splitRatio: config.splitRatio,
                           minimumSizes: minimumSizes)
             }
+            acceptFloatingFrame(window)
             ledger.observed(window.frame, for: window.token)
         }
         if environment.frontmostPID() == pid,
@@ -414,6 +416,17 @@ final class WMController {
         if removedFocusedWindow, let replacement = world.visible.focused {
             windowSystem.focus(replacement)
         }
+    }
+
+    private func acceptFloatingFrame(_ window: AXWindowSnapshot) {
+        // Ignore our own hide/restore, fullscreen, and resize echoes. Only
+        // freely positioned visible windows may replace their stored frame.
+        guard window.isOnCurrentSpace,
+              journal.entries[window.token] == nil,
+              !ledger.isWritingFrame(for: window.token),
+              Geometry.isMeaningfullyVisible(window.frame, in: environment.mainScreenBounds())
+        else { return }
+        world.updateVisibleFloatingFrame(window.frame, for: window.token)
     }
 
     private func applyLayout() {
@@ -751,7 +764,7 @@ final class WMController {
     start-at-login true
     border color accent
     border width 2
-    border radius 9
+    border radius auto
     bindsym $mod+j focus left
     bindsym $mod+k focus down
     bindsym $mod+l focus up

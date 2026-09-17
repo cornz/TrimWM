@@ -11,7 +11,7 @@ TrimWM combines Niri-style scrolling columns with i3-style automatic tiling.
 - Deliberately smaller than OmniWM and more layout-focused than AeroSpace
 
 TrimWM is a small, local tiling window manager for Apple Silicon Macs running
-macOS 26. It has two layouts: i3-style BSP autotiling and a minimal
+macOS 26 or later. It has two layouts: i3-style BSP autotiling and a minimal
 Niri-style scrolling-column layout. It intentionally has no animations,
 session restore, network access, external packages, or settings window.
 
@@ -78,7 +78,7 @@ certificate, uses the hardened runtime, and is notarized and stapled.
 
 ## Build from source
 
-Building from source requires Xcode 26.x.
+Building from source requires Xcode 26 or later.
 
 ```sh
 xcodebuild build \
@@ -173,10 +173,15 @@ border color accent
 # Alternatives: border color 0x0A84FF
 #               border color 0x0A84FFFF
 border width 2
-border radius 9
+border radius auto
 ```
 
 Only one `border color` line is needed. A width of `0` hides the border.
+The default radius, `auto`, follows macOS 27's uniform 16-point window corners
+and adds the border width so the inner edge fits the window. On macOS 26 it
+keeps the previous 9-point outer radius. A numeric radius sets the outer radius
+directly, including `0` for square corners. In an existing configuration, replace
+`border radius 9` with `border radius auto` to adopt the new default.
 `Option+Shift+C` reloads all three values immediately.
 
 ## Recovery and removal

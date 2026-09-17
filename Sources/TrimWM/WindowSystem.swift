@@ -169,6 +169,10 @@ struct FrameLedger: Sendable {
     }
     private var entries: [WindowToken: Entry] = [:]
 
+    func isWritingFrame(for window: WindowToken) -> Bool {
+        entries[window]?.inFlight != nil
+    }
+
     mutating func needsWrite(_ frame: CGRect, for window: WindowToken, tolerance: CGFloat = 4) -> Bool {
         var entry = entries[window] ?? Entry()
         if entry.target?.approximatelyEquals(frame, tolerance: tolerance) != true {

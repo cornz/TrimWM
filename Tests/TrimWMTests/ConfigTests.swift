@@ -88,7 +88,14 @@ final class ConfigTests: XCTestCase {
         XCTAssertEqual(config.workspaceCount, 10)
         XCTAssertTrue(config.niriSingleWindowFullWidth)
         XCTAssertTrue(config.focusFollowsMouse)
-        XCTAssertEqual(config.border, BorderStyle(color: .accent, width: 2, radius: 9))
+        XCTAssertEqual(config.border, BorderStyle(color: .accent, width: 2, radius: nil))
+    }
+
+    func testAutomaticBorderRadiusIsDefaultAndCanReplaceAnExplicitRadius() throws {
+        XCTAssertNil(try ConfigParser.parse("").border.radius)
+        XCTAssertNil(try ConfigParser.parse("border radius 12\nborder radius auto").border.radius)
+        XCTAssertEqual(try ConfigParser.parse("border radius auto\nborder radius 0").border.radius, 0)
+        XCTAssertEqual(try ConfigParser.parse("border radius 9").border.radius, 9)
     }
 
     func testValidationRejectsDuplicateChordsMissingModesAndOutOfRangeWorkspaces() throws {

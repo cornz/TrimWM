@@ -188,6 +188,129 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.mouse.updates.last?.frames[codex]?.width, bounds.width)
     }
 
+    func testFloatingWindowKeepsManualMovesAndResizesAndUpdatesFocusBorder() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.environment.frontmostPID = token.pid
+        var focusFrame: CGRect?
+        harness.controller.onFocusFrame = { focusFrame = $0 }
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [
+            snapshot(token, x: 100, focused: true, disposition: .floating),
+        ])])
+
+        for frame in [CGRect(x: 180, y: 90, width: 400, height: 300),
+                      CGRect(x: 240, y: 120, width: 520, height: 360)] {
+            harness.controller.handle([.frameObserved(token, frame)])
+            XCTAssertEqual(harness.controller.world.visible.floating[token], frame)
+            XCTAssertEqual(harness.mouse.updates.last?.frames[token], frame)
+            XCTAssertEqual(focusFrame, frame)
+        }
+        XCTAssertTrue(harness.windowSystem.writes.isEmpty)
+    }
+
+    func testFloatingWindowInventoryAdoptsManualFrameChanges() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [snapshot(token, x: 100, disposition: .floating)])])
+        let moved = snapshot(token, x: 250, disposition: .floating)
+        moved.frame.size = CGSize(width: 500, height: 350)
+
+        harness.controller.handle([.windows(token.pid, [moved])])
+
+        XCTAssertEqual(harness.controller.world.visible.floating[token], moved.frame)
+        XCTAssertTrue(harness.windowSystem.writes.isEmpty)
+    }
+
+    func testFloatingWindowIgnoresIntermediateCommandResizeEcho() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [snapshot(token, x: 100, disposition: .floating)])])
+        harness.controller.execute(.resize(.right, 100))
+        let target = harness.controller.world.visible.floating[token]!
+        let intermediate = CGRect(x: 100, y: 0, width: 450, height: 300)
+
+        harness.controller.handle([.frameObserved(token, intermediate)])
+        let scanned = snapshot(token, x: 100, disposition: .floating)
+        scanned.frame = intermediate
+        harness.controller.handle([.windows(token.pid, [scanned])])
+
+        XCTAssertEqual(harness.controller.world.visible.floating[token], target)
+        XCTAssertEqual(harness.windowSystem.writes.count, 1)
+        harness.controller.handle([.frameWriteResult(token, target, .init(observed: target, succeeded: true))])
+        let moved = target.offsetBy(dx: 80, dy: 60)
+        harness.controller.handle([.frameObserved(token, moved)])
+        XCTAssertEqual(harness.controller.world.visible.floating[token], moved)
+        XCTAssertEqual(harness.windowSystem.writes.count, 1)
+    }
+
+    func testFloatingWindowRetainsManualFrameAcrossWorkspaceHideAndRestore() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [snapshot(token, x: 100, disposition: .floating)])])
+        let moved = CGRect(x: 240, y: 120, width: 500, height: 350)
+        harness.controller.handle([.frameObserved(token, moved)])
+        harness.controller.execute(.workspace(2))
+        let hidden = harness.windowSystem.writes.last!.1
+        harness.controller.handle([
+            .frameWriteResult(token, hidden, .init(observed: hidden, succeeded: true)),
+            .frameObserved(token, hidden),
+        ])
+        XCTAssertEqual(harness.controller.world.workspaces[0].floating[token], moved)
+
+        harness.controller.execute(.workspace(1))
+        XCTAssertEqual(harness.windowSystem.writes.last?.1, moved)
+        harness.controller.handle([.frameObserved(token, hidden)])
+        XCTAssertEqual(harness.controller.world.visible.floating[token], moved)
+        harness.controller.handle([
+            .frameWriteResult(token, moved, .init(observed: moved, succeeded: true)),
+            .frameObserved(token, moved),
+        ])
+        let movedAgain = moved.offsetBy(dx: 30, dy: 20)
+        let writeCount = harness.windowSystem.writes.count
+        harness.controller.handle([.frameObserved(token, movedAgain)])
+        XCTAssertEqual(harness.controller.world.visible.floating[token], movedAgain)
+        XCTAssertEqual(harness.windowSystem.writes.count, writeCount)
+    }
+
+    func testFloatingFullscreenDoesNotReplaceRestoreFrame() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.environment.frontmostPID = token.pid
+        harness.windowSystem.liveFocused = token
+        harness.controller.start()
+        let window = snapshot(token, x: 100, focused: true, disposition: .floating)
+        let original = window.frame
+        harness.controller.handle([.windows(token.pid, [window])])
+        harness.controller.execute(.fullscreen)
+        harness.controller.handle([
+            .frameWriteResult(token, bounds, .init(observed: bounds, succeeded: true)),
+            .frameObserved(token, bounds),
+        ])
+        XCTAssertEqual(harness.controller.world.visible.floating[token], original)
+
+        harness.controller.execute(.fullscreen)
+        XCTAssertEqual(harness.windowSystem.writes.last?.1, original)
+    }
+
+    func testTiledWindowStillReturnsToItsTileAfterManualMovement() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [snapshot(token, x: 100)])])
+        let tile = harness.windowSystem.writes.last!.1
+        harness.controller.handle([
+            .frameWriteResult(token, tile, .init(observed: tile, succeeded: true)),
+            .frameObserved(token, tile.offsetBy(dx: 100, dy: 50)),
+        ])
+        XCTAssertNil(harness.controller.world.visible.floating[token])
+        XCTAssertEqual(harness.windowSystem.writes.count, 2)
+        XCTAssertEqual(harness.windowSystem.writes.last?.1, tile)
+    }
+
     func testClosingBackgroundWindowDoesNotStealFocus() {
         let harness = makeHarness()
         let codex = WindowToken(pid: 40, id: 1)
@@ -483,14 +606,15 @@ final class ControllerTests: XCTestCase {
         _ token: WindowToken,
         x: CGFloat,
         focused: Bool = false,
-        isOnScreen: Bool = true
+        isOnScreen: Bool = true,
+        disposition: WindowDisposition = .tiled
     ) -> AXWindowSnapshot {
         AXWindowSnapshot(
             token: token,
             bundleID: "com.example.app",
             title: "\(token.id)",
             frame: CGRect(x: x, y: 0, width: 400, height: 300),
-            disposition: .tiled,
+            disposition: disposition,
             isFocused: focused,
             isOnScreen: isOnScreen,
             isOnCurrentSpace: true,
