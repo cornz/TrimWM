@@ -10,6 +10,7 @@ enum WMEvent: Sendable {
     case mouseColumnMove(WindowToken, WindowToken)
     case mouseColumnDragFeedback(MouseColumnDragFeedback)
     case frameWriteResult(WindowToken, CGRect, AXFrameWriteResult)
+    case windowsReordered
 }
 
 struct EventBuffer {
@@ -45,6 +46,10 @@ struct EventBuffer {
                case .mouseColumnDragFeedback = events[last] {
                 events[last] = event
             } else {
+                events.append(event)
+            }
+        case .windowsReordered:
+            if !events.contains(where: { if case .windowsReordered = $0 { true } else { false } }) {
                 events.append(event)
             }
         case .command, .mouseColumnMove, .frameWriteResult:

@@ -24,6 +24,37 @@ final class GeometryTests: XCTestCase {
         }
     }
 
+    func testRingFollowsTheWindowsOwnCornersUnlessARadiusIsConfigured() {
+        let measured = FocusBorderGeometry.ringRadii(configured: nil, windowRadius: 26, strokeWidth: 2, macOSMajorVersion: 27)
+        XCTAssertEqual(measured.inner, 26)
+        XCTAssertEqual(measured.outer, 28)
+        let square = FocusBorderGeometry.ringRadii(configured: nil, windowRadius: 0, strokeWidth: 2, macOSMajorVersion: 27)
+        XCTAssertEqual(square.inner, 0)
+        XCTAssertEqual(square.outer, 2)
+        let unknown = FocusBorderGeometry.ringRadii(configured: nil, windowRadius: nil, strokeWidth: 2, macOSMajorVersion: 27)
+        XCTAssertEqual(unknown.inner, 16)
+        XCTAssertEqual(unknown.outer, 18)
+        let legacy = FocusBorderGeometry.ringRadii(configured: nil, windowRadius: nil, strokeWidth: 2, macOSMajorVersion: 26)
+        XCTAssertEqual(legacy.inner, 7)
+        XCTAssertEqual(legacy.outer, 9)
+        let configured = FocusBorderGeometry.ringRadii(configured: 12, windowRadius: 26, strokeWidth: 4, macOSMajorVersion: 27)
+        XCTAssertEqual(configured.inner, 8)
+        XCTAssertEqual(configured.outer, 12)
+        let squareConfigured = FocusBorderGeometry.ringRadii(configured: 0, windowRadius: 26, strokeWidth: 4, macOSMajorVersion: 27)
+        XCTAssertEqual(squareConfigured.inner, 0)
+        XCTAssertEqual(squareConfigured.outer, 0)
+    }
+
+    func testBorderScreenPointFlipsAroundThePrimaryScreen() {
+        XCTAssertEqual(
+            FocusBorderGeometry.screenPoint(
+                of: CGRect(x: 100, y: 40, width: 200, height: 100),
+                primaryScreenFrame: CGRect(x: 0, y: 0, width: 1920, height: 1080)
+            ),
+            CGPoint(x: 200, y: 990)
+        )
+    }
+
     func testFocusBorderConvertsTopLeftWindowCoordinatesToAppKit() {
         let screen = CGRect(x: 0, y: 0, width: 1920, height: 1080)
         let window = CGRect(x: -2, y: 28, width: 964, height: 970)

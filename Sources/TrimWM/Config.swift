@@ -284,3 +284,65 @@ enum ConfigParser {
         return result
     }
 }
+
+/// Reports saves of the configuration file. It watches the file's directory
+/// rather than the file, because editors that save atomically replace the
+/// file, and it also watches the directory of a symlinked file's target.
+final class ConfigWatcher: @unchecked Sendable {
+    private var stream: FSEventStreamRef?
+    private let paths: Set<String>
+    private let onChange: @MainActor () -> Void
+
+    init?(url: URL, onChange: @escaping @MainActor () -> Void) {
+        let file = url.standardizedFileURL
+        let target = file.resolvingSymlinksInPath()
+        paths = [file.path, target.path]
+        self.onChange = onChange
+        let directories = Set([file, target].map { Self.existingAncestor(of: $0.deletingLastPathComponent()).path })
+        var context = FSEventStreamContext(
+            version: 0,
+            info: Unmanaged.passUnretained(self).toOpaque(),
+            retain: nil,
+            release: nil,
+            copyDescription: nil
+        )
+        guard let stream = FSEventStreamCreate(
+            kCFAllocatorDefault,
+            { _, info, count, paths, _, _ in
+                guard let info,
+                      let paths = Unmanaged<CFArray>.fromOpaque(paths).takeUnretainedValue() as? [String]
+                else { return }
+                let watcher = Unmanaged<ConfigWatcher>.fromOpaque(info).takeUnretainedValue()
+                guard paths.prefix(count).contains(where: watcher.matches) else { return }
+                MainActor.assumeIsolated { watcher.onChange() }
+            },
+            &context,
+            Array(directories) as CFArray,
+            FSEventStreamEventId(kFSEventStreamEventIdSinceNow),
+            0.1,
+            FSEventStreamCreateFlags(kFSEventStreamCreateFlagFileEvents | kFSEventStreamCreateFlagUseCFTypes)
+        ) else { return nil }
+        self.stream = stream
+        FSEventStreamSetDispatchQueue(stream, .main)
+        guard FSEventStreamStart(stream) else { return nil }
+    }
+
+    deinit {
+        guard let stream else { return }
+        FSEventStreamStop(stream)
+        FSEventStreamInvalidate(stream)
+        FSEventStreamRelease(stream)
+    }
+
+    private func matches(_ path: String) -> Bool {
+        paths.contains(URL(fileURLWithPath: path).standardizedFileURL.path)
+    }
+
+    private static func existingAncestor(of url: URL) -> URL {
+        var url = url
+        while !FileManager.default.fileExists(atPath: url.path), url.pathComponents.count > 1 {
+            url.deleteLastPathComponent()
+        }
+        return url
+    }
+}

@@ -178,6 +178,21 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertTrue(ledger.needsWrite(changedTarget, for: window))
     }
 
+    func testFrameLedgerWritesSmallGapChanges() {
+        let window = WindowToken(pid: 1, id: 2)
+        let placed = CGRect(x: 846, y: 37, width: 798, height: 700)
+        var ledger = FrameLedger()
+        ledger.observed(placed, for: window)
+
+        XCTAssertFalse(ledger.needsWrite(placed.offsetBy(dx: 0.5, dy: 0), for: window))
+        let shiftedByGap = CGRect(x: 850, y: 33, width: 794, height: 708)
+        XCTAssertTrue(ledger.needsWrite(shiftedByGap, for: window))
+        XCTAssertEqual(
+            ledger.completed(shiftedByGap, for: window, result: .init(observed: placed, succeeded: false)),
+            .write(shiftedByGap)
+        )
+    }
+
     func testFrameLedgerStopsFightingRepeatedFastApplicationOverrides() {
         let window = WindowToken(pid: 1, id: 2)
         let original = CGRect(x: 0, y: 0, width: 524, height: 760)
@@ -321,6 +336,10 @@ final class WindowSystemTests: XCTestCase {
             AXFrameWritePlan(order: .sizeThenPosition, writesPosition: false, writesSize: false)
         )
         XCTAssertEqual(
+            AXFrameWriter.plan(current: current, target: CGRect(x: 54, y: 46, width: 496, height: 404)),
+            AXFrameWritePlan(order: .positionThenSize, writesPosition: true, writesSize: true)
+        )
+        XCTAssertEqual(
             AXFrameWriter.plan(current: nil, target: current),
             AXFrameWritePlan(order: .sizeThenPosition, writesPosition: true, writesSize: true)
         )
@@ -391,6 +410,64 @@ final class WindowSystemTests: XCTestCase {
 
         XCTAssertNil(cache.value(for: first))
         XCTAssertNil(cache.value(for: second))
+    }
+
+    func testEnhancedUIBurstChecksOncePerBurstAndRestoresOnlyWhatItSuspended() {
+        var burst = EnhancedUIBurst()
+        XCTAssertTrue(burst.begin())
+        XCTAssertFalse(burst.begin())
+        XCTAssertFalse(burst.end())
+
+        XCTAssertTrue(burst.begin())
+        burst.suspend()
+        XCTAssertFalse(burst.begin())
+        XCTAssertTrue(burst.isSuspended)
+        XCTAssertTrue(burst.end())
+        XCTAssertFalse(burst.isActive)
+        XCTAssertFalse(burst.isSuspended)
+        XCTAssertFalse(burst.end())
+    }
+
+    func testAppMinimumSizesConfirmRefusalsThatLandOnTheSameSizeFromDifferentTargets() {
+        var sizes = AppMinimumSizes(url: nil)
+        let app = "com.apple.Safari"
+
+        XCTAssertFalse(sizes.refused(target: CGRect(x: 0, y: 0, width: 500, height: 600), observed: CGRect(x: 0, y: 0, width: 574, height: 600), bundleID: app))
+        XCTAssertNil(sizes.value(for: app))
+        XCTAssertFalse(sizes.refused(target: CGRect(x: 0, y: 0, width: 490, height: 600), observed: CGRect(x: 0, y: 0, width: 574, height: 600), bundleID: app))
+        XCTAssertNil(sizes.value(for: app))
+        XCTAssertTrue(sizes.refused(target: CGRect(x: 0, y: 0, width: 300, height: 600), observed: CGRect(x: 0, y: 0, width: 574, height: 600), bundleID: app))
+        XCTAssertEqual(sizes.value(for: app), CGSize(width: 574, height: 1))
+        XCTAssertNil(sizes.value(for: "com.apple.Terminal"))
+    }
+
+    func testAppMinimumSizesIgnoreGridSnapping() {
+        var sizes = AppMinimumSizes(url: nil)
+        let app = "com.apple.Terminal"
+        for (target, observed) in [(800.0, 807.0), (600.0, 603.0), (400.0, 406.0), (900.0, 909.0)] {
+            XCTAssertFalse(sizes.refused(
+                target: CGRect(x: 0, y: 0, width: target, height: 500),
+                observed: CGRect(x: 0, y: 0, width: observed, height: 500),
+                bundleID: app
+            ))
+        }
+        XCTAssertNil(sizes.value(for: app))
+    }
+
+    func testAppMinimumSizesPersistConfirmedSizesAndPendingRefusals() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "TrimWMMinimumSizes-\(UUID().uuidString)/minimum-sizes.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let app = "com.apple.Safari"
+
+        var first = AppMinimumSizes(url: url)
+        _ = first.refused(target: CGRect(x: 0, y: 0, width: 500, height: 100), observed: CGRect(x: 0, y: 0, width: 574, height: 220), bundleID: app)
+
+        var second = AppMinimumSizes(url: url)
+        XCTAssertNil(second.value(for: app))
+        XCTAssertTrue(second.refused(target: CGRect(x: 0, y: 0, width: 300, height: 150), observed: CGRect(x: 0, y: 0, width: 574, height: 220), bundleID: app))
+
+        XCTAssertEqual(AppMinimumSizes(url: url).value(for: app), CGSize(width: 574, height: 220))
     }
 
     func testFrameLedgerResetAndUnknownCompletionAreNoOps() {

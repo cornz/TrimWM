@@ -52,12 +52,36 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: harness.configURL, encoding: .utf8), "custom config")
     }
 
+    func testSavedConfigReloadsOnlyWhenItsContentChanges() throws {
+        let harness = makeHarness()
+        var widths: [CGFloat] = []
+        harness.controller.onBorderStyle = { widths.append($0.width) }
+        try FileManager.default.createDirectory(
+            at: harness.configURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try WMController.defaultConfig.write(to: harness.configURL, atomically: true, encoding: .utf8)
+        harness.controller.start()
+        XCTAssertEqual(widths, [2])
+
+        harness.environment.configChanged?()
+        XCTAssertEqual(widths, [2])
+
+        let edited = WMController.defaultConfig.replacingOccurrences(of: "border width 2", with: "border width 7")
+        try edited.write(to: harness.configURL, atomically: true, encoding: .utf8)
+        harness.environment.configChanged?()
+        XCTAssertEqual(widths, [2, 7])
+
+        harness.environment.configChanged?()
+        XCTAssertEqual(widths, [2, 7])
+    }
+
     func testTrustLifecycleStartsOnceAndDisablesCleanly() {
         let harness = makeHarness(trusted: false)
         var statuses: [(String, String?)] = []
-        var focusFrames: [CGRect?] = []
+        var focusFrames: [FocusBorderTarget?] = []
         harness.controller.onStatus = { statuses.append(($0, $1)) }
-        harness.controller.onFocusFrame = { focusFrames.append($0) }
+        harness.controller.onFocusBorder = { focusFrames.append($0) }
 
         harness.controller.start()
 
@@ -193,7 +217,7 @@ final class ControllerTests: XCTestCase {
         let token = WindowToken(pid: 40, id: 1)
         harness.environment.frontmostPID = token.pid
         var focusFrame: CGRect?
-        harness.controller.onFocusFrame = { focusFrame = $0 }
+        harness.controller.onFocusBorder = { focusFrame = $0?.frame }
         harness.controller.start()
         harness.controller.handle([.windows(token.pid, [
             snapshot(token, x: 100, focused: true, disposition: .floating),
@@ -207,6 +231,27 @@ final class ControllerTests: XCTestCase {
             XCTAssertEqual(focusFrame, frame)
         }
         XCTAssertTrue(harness.windowSystem.writes.isEmpty)
+    }
+
+    func testFocusBorderFollowsTheObservedFrameOfATiledWindow() {
+        let harness = makeHarness()
+        let token = WindowToken(pid: 40, id: 1)
+        harness.environment.frontmostPID = token.pid
+        var focusTarget: FocusBorderTarget?
+        harness.controller.onFocusBorder = { focusTarget = $0 }
+        harness.controller.start()
+        harness.controller.handle([.windows(token.pid, [snapshot(token, x: 0, focused: true)])])
+        let desired = harness.windowSystem.writes.last!.1
+
+        let snapped = CGRect(x: desired.minX, y: desired.minY, width: desired.width - 7, height: desired.height - 5)
+        harness.controller.handle([.frameObserved(token, snapped)])
+
+        XCTAssertEqual(focusTarget, FocusBorderTarget(window: token.id, frame: snapped))
+        XCTAssertEqual(harness.mouse.updates.last?.frames[token], desired)
+
+        focusTarget = nil
+        harness.controller.handle([.windowsReordered])
+        XCTAssertEqual(focusTarget, FocusBorderTarget(window: token.id, frame: snapped))
     }
 
     func testFloatingWindowInventoryAdoptsManualFrameChanges() {
@@ -567,9 +612,32 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.windowSystem.syncWrites.first?.1, frame)
     }
 
+    func testLearnedAppMinimumWidensNewWindowsOfThatApp() {
+        var minimums = AppMinimumSizes(url: nil)
+        for target in [400.0, 300.0] {
+            _ = minimums.refused(
+                target: CGRect(x: 0, y: 0, width: target, height: 600),
+                observed: CGRect(x: 0, y: 0, width: 700, height: 600),
+                bundleID: "com.example.wide"
+            )
+        }
+        let harness = makeHarness(appMinimumSizes: minimums)
+        let wide = WindowToken(pid: 40, id: 1)
+        let other = WindowToken(pid: 41, id: 2)
+        harness.controller.start()
+
+        harness.controller.handle([.windows(40, [snapshot(wide, x: 0, bundleID: "com.example.wide")])])
+        harness.controller.handle([.windows(41, [snapshot(other, x: 500)])])
+
+        let frames = Dictionary(harness.windowSystem.writes.map { ($0.0, $0.1) }, uniquingKeysWith: { $1 })
+        XCTAssertGreaterThanOrEqual(frames[wide]!.width, 700)
+        XCTAssertLessThanOrEqual(frames[other]!.width, 300)
+    }
+
     private func makeHarness(
         trusted: Bool = true,
-        journal: CrashJournal? = nil
+        journal: CrashJournal? = nil,
+        appMinimumSizes: AppMinimumSizes = AppMinimumSizes(url: nil)
     ) -> ControllerHarness {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "TrimWMControllerTests-\(UUID().uuidString)")
@@ -590,7 +658,8 @@ final class ControllerTests: XCTestCase {
             journal: journal ?? CrashJournal(
                 url: directory.appending(path: "journal.json"),
                 bootID: "boot"
-            )
+            ),
+            appMinimumSizes: appMinimumSizes
         )
         return ControllerHarness(
             controller: controller,
@@ -607,11 +676,12 @@ final class ControllerTests: XCTestCase {
         x: CGFloat,
         focused: Bool = false,
         isOnScreen: Bool = true,
-        disposition: WindowDisposition = .tiled
+        disposition: WindowDisposition = .tiled,
+        bundleID: String = "com.example.app"
     ) -> AXWindowSnapshot {
         AXWindowSnapshot(
             token: token,
-            bundleID: "com.example.app",
+            bundleID: bundleID,
             title: "\(token.id)",
             frame: CGRect(x: x, y: 0, width: 400, height: 300),
             disposition: disposition,
@@ -639,6 +709,7 @@ private final class FakeWindowSystem: WindowSystemControlling {
     var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)?
     var onFrame: ((WindowToken, CGRect) -> Void)?
     var onApplicationActivated: ((pid_t) -> Void)?
+    var onReorder: (() -> Void)?
     var mouseSurfaces: [MouseSurface] = []
     var liveFocused: WindowToken?
     var contained: [WindowToken: String] = [:]
@@ -738,6 +809,7 @@ private final class TestControllerEnvironment {
     var shellCommands: [String] = []
     var openedTextFiles: [URL] = []
     var shellError: Error?
+    var configChanged: (@MainActor () -> Void)?
     let bounds: CGRect
 
     init(trusted: Bool, bounds: CGRect) {
@@ -758,7 +830,11 @@ private final class TestControllerEnvironment {
             },
             openTextFile: { self.openedTextFiles.append($0) },
             openAccessibilitySettings: { self.accessibilityOpenCount += 1 },
-            terminate: { self.terminateCount += 1 }
+            terminate: { self.terminateCount += 1 },
+            watchConfig: { _, onChange in
+                self.configChanged = onChange
+                return NSObject()
+            }
         )
     }
 }

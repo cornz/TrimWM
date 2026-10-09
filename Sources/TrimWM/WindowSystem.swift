@@ -77,6 +77,13 @@ struct AXFrameWriteResult: Equatable, Sendable {
     let succeeded: Bool
 }
 
+/// How far a window may sit from its target and still count as placed. Only
+/// rounding noise: a gap change can move a target by a few points, and
+/// those few points must still be written.
+enum FramePlacement {
+    static let tolerance: CGFloat = 1
+}
+
 enum AXFrameWriter {
     static func order(current: CGRect?, target: CGRect) -> AXFrameWriteOrder {
         guard let current else { return .sizeThenPosition }
@@ -85,7 +92,7 @@ enum AXFrameWriter {
             : .sizeThenPosition
     }
 
-    static func plan(current: CGRect?, target: CGRect, tolerance: CGFloat = 4) -> AXFrameWritePlan {
+    static func plan(current: CGRect?, target: CGRect, tolerance: CGFloat = FramePlacement.tolerance) -> AXFrameWritePlan {
         guard let current else {
             return AXFrameWritePlan(order: .sizeThenPosition, writesPosition: true, writesSize: true)
         }
@@ -124,6 +131,30 @@ struct AXScanGate: Equatable, Sendable {
     mutating func reset() { self = AXScanGate() }
 }
 
+/// Frame writes in quick succession share one AXEnhancedUserInterface check.
+/// The first write of a burst turns enhanced UI off if the app had it on,
+/// because apps animate and fight frame writes while it is on; the end of the
+/// burst turns it back on for assistive technology.
+struct EnhancedUIBurst: Equatable, Sendable {
+    private(set) var isActive = false
+    private(set) var isSuspended = false
+
+    /// Whether the app's enhanced UI must be checked before this write.
+    mutating func begin() -> Bool {
+        guard !isActive else { return false }
+        isActive = true
+        return true
+    }
+
+    mutating func suspend() { isSuspended = true }
+
+    /// Whether enhanced UI must be turned back on.
+    mutating func end() -> Bool {
+        defer { self = EnhancedUIBurst() }
+        return isSuspended
+    }
+}
+
 enum FrameWriteDecision: Equatable, Sendable {
     case none
     case write(CGRect)
@@ -154,6 +185,88 @@ struct FrameConstraintCache: Sendable {
     }
 }
 
+/// Minimum sizes apps refused to shrink below, by bundle ID, kept across
+/// launches so a new window of a known app is laid out right the first time.
+/// A refusal only becomes a minimum once another refusal with a clearly
+/// different target lands on the same size: windows that snap to a grid, like
+/// Terminal's, land near each target instead.
+struct AppMinimumSizes {
+    private struct Refusal: Codable, Equatable {
+        var target: CGFloat
+        var observed: CGFloat
+    }
+
+    private struct Entry: Codable, Equatable {
+        var width: CGFloat = 1
+        var height: CGFloat = 1
+        var widthRefusal: Refusal?
+        var heightRefusal: Refusal?
+    }
+
+    static let confirmationDistance: CGFloat = 32
+    let url: URL?
+    private var entries: [String: Entry] = [:]
+
+    init(url: URL?) {
+        self.url = url
+        if let url, let data = try? Data(contentsOf: url),
+           let decoded = try? JSONDecoder().decode([String: Entry].self, from: data) {
+            entries = decoded
+        }
+    }
+
+    func value(for bundleID: String) -> CGSize? {
+        guard let entry = entries[bundleID], entry.width > 1 || entry.height > 1 else { return nil }
+        return CGSize(width: entry.width, height: entry.height)
+    }
+
+    /// Returns whether a confirmed minimum grew.
+    mutating func refused(target: CGRect, observed: CGRect, bundleID: String, tolerance: CGFloat = 4) -> Bool {
+        var entry = entries[bundleID] ?? Entry()
+        let widthGrew = Self.learn(
+            target: target.width, observed: observed.width, tolerance: tolerance,
+            refusal: &entry.widthRefusal, minimum: &entry.width
+        )
+        let heightGrew = Self.learn(
+            target: target.height, observed: observed.height, tolerance: tolerance,
+            refusal: &entry.heightRefusal, minimum: &entry.height
+        )
+        guard entries[bundleID] != entry else { return false }
+        entries[bundleID] = entry
+        save()
+        return widthGrew || heightGrew
+    }
+
+    private static func learn(
+        target: CGFloat,
+        observed: CGFloat,
+        tolerance: CGFloat,
+        refusal: inout Refusal?,
+        minimum: inout CGFloat
+    ) -> Bool {
+        guard observed > target + tolerance else { return false }
+        guard let previous = refusal,
+              abs(previous.observed - observed) <= 1,
+              abs(previous.target - target) >= confirmationDistance
+        else {
+            refusal = Refusal(target: target, observed: observed)
+            return false
+        }
+        refusal = nil
+        guard observed > minimum else { return false }
+        minimum = observed
+        return true
+    }
+
+    private func save() {
+        guard let url else { return }
+        do {
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try JSONEncoder().encode(entries).write(to: url, options: .atomic)
+        } catch {}
+    }
+}
+
 struct FrameLedger: Sendable {
     private struct Entry: Sendable {
         var observed: CGRect?
@@ -173,7 +286,7 @@ struct FrameLedger: Sendable {
         entries[window]?.inFlight != nil
     }
 
-    mutating func needsWrite(_ frame: CGRect, for window: WindowToken, tolerance: CGFloat = 4) -> Bool {
+    mutating func needsWrite(_ frame: CGRect, for window: WindowToken, tolerance: CGFloat = FramePlacement.tolerance) -> Bool {
         var entry = entries[window] ?? Entry()
         if entry.target?.approximatelyEquals(frame, tolerance: tolerance) != true {
             entry.target = frame
@@ -211,7 +324,7 @@ struct FrameLedger: Sendable {
     mutating func observed(
         _ frame: CGRect,
         for window: WindowToken,
-        tolerance: CGFloat = 4,
+        tolerance: CGFloat = FramePlacement.tolerance,
         at timestamp: TimeInterval = ProcessInfo.processInfo.systemUptime
     ) {
         var entry = entries[window] ?? Entry()
@@ -248,7 +361,7 @@ struct FrameLedger: Sendable {
         _ frame: CGRect,
         for window: WindowToken,
         result: AXFrameWriteResult,
-        tolerance: CGFloat = 4
+        tolerance: CGFloat = FramePlacement.tolerance
     ) -> FrameWriteDecision {
         guard var entry = entries[window],
               entry.inFlight?.approximatelyEquals(frame, tolerance: tolerance) == true
@@ -378,23 +491,30 @@ private final class AXContext: @unchecked Sendable {
     private let skyLight: SkyLight
     private let onScan: @Sendable (pid_t, [AXWindowSnapshot]) -> Void
     private let onFrame: @Sendable (WindowToken, CGRect) -> Void
+    private let observesFrames: Bool
     private var observer: AXObserver?
     private var observerSource: CFRunLoopSource?
     private var observedWindows: Set<CGWindowID> = []
     private let stateLock = NSLock()
     private var stopped = false
     private var scanGate = AXScanGate()
+    private var enhancedUI = EnhancedUIBurst()
+    private var enhancedUIRestore: DispatchWorkItem?
+    private static let enhancedUIKey = "AXEnhancedUserInterface" as CFString
+    private static let enhancedUIRestoreDelay: DispatchTimeInterval = .seconds(1)
 
     init(
         pid: pid_t,
         bundleID: String,
         skyLight: SkyLight,
+        observesFrames: Bool,
         onScan: @escaping @Sendable (pid_t, [AXWindowSnapshot]) -> Void,
         onFrame: @escaping @Sendable (WindowToken, CGRect) -> Void
     ) {
         self.pid = pid
         self.bundleID = bundleID
         self.skyLight = skyLight
+        self.observesFrames = observesFrames
         self.onScan = onScan
         self.onFrame = onFrame
         application = AXUIElementCreateApplication(pid)
@@ -420,15 +540,17 @@ private final class AXContext: @unchecked Sendable {
         scan()
     }
 
-    func stop() {
-        stateLock.withLock {
+    func stop(restoringEnhancedUI: Bool = true) {
+        let suspended = stateLock.withLock {
             stopped = true
             scanGate.reset()
             observedWindows.removeAll()
             observer = nil
+            return enhancedUI.isSuspended
         }
         if let observerSource { CFRunLoopRemoveSource(CFRunLoopGetMain(), observerSource, .commonModes) }
         observerSource = nil
+        if suspended, restoringEnhancedUI { queue.sync { restoreEnhancedUI() } }
     }
 
     func scan() {
@@ -546,23 +668,37 @@ private final class AXContext: @unchecked Sendable {
             return self.observer
         }) else { return }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-        for notification in [kAXUIElementDestroyedNotification, kAXWindowMovedNotification, kAXWindowResizedNotification, kAXWindowMiniaturizedNotification, kAXWindowDeminiaturizedNotification] {
+        var notifications = [kAXUIElementDestroyedNotification, kAXWindowMiniaturizedNotification, kAXWindowDeminiaturizedNotification]
+        if observesFrames { notifications += [kAXWindowMovedNotification, kAXWindowResizedNotification] }
+        for notification in notifications {
             AXObserverAddNotification(observer, element, notification as CFString, refcon)
         }
     }
 
-    private func apply(_ frame: CGRect, currentFrameHint: CGRect?, to element: AXUIElement) -> AXFrameWriteResult {
-        let enhancedUIKey = "AXEnhancedUserInterface" as CFString
-        let enhancedUIWasEnabled = Self.readValue(application, enhancedUIKey as String) as? Bool == true
-        if enhancedUIWasEnabled {
-            AXUIElementSetAttributeValue(application, enhancedUIKey, kCFBooleanFalse)
+    // Runs on `queue` before every frame write.
+    private func suspendEnhancedUI() {
+        if stateLock.withLock({ enhancedUI.begin() }),
+           Self.readValue(application, Self.enhancedUIKey as String) as? Bool == true {
+            AXUIElementSetAttributeValue(application, Self.enhancedUIKey, kCFBooleanFalse)
+            stateLock.withLock { enhancedUI.suspend() }
         }
-        defer {
-            if enhancedUIWasEnabled {
-                AXUIElementSetAttributeValue(application, enhancedUIKey, kCFBooleanTrue)
-            }
-        }
+        enhancedUIRestore?.cancel()
+        let restore = DispatchWorkItem { [weak self] in self?.restoreEnhancedUI() }
+        enhancedUIRestore = restore
+        queue.asyncAfter(deadline: .now() + Self.enhancedUIRestoreDelay, execute: restore)
+    }
 
+    // Runs on `queue`.
+    private func restoreEnhancedUI() {
+        enhancedUIRestore?.cancel()
+        enhancedUIRestore = nil
+        if stateLock.withLock({ enhancedUI.end() }) {
+            AXUIElementSetAttributeValue(application, Self.enhancedUIKey, kCFBooleanTrue)
+        }
+    }
+
+    private func apply(_ frame: CGRect, currentFrameHint: CGRect?, to element: AXUIElement) -> AXFrameWriteResult {
+        suspendEnhancedUI()
         var size = frame.size, point = frame.origin
         guard let sizeValue = AXValueCreate(.cgSize, &size), let pointValue = AXValueCreate(.cgPoint, &point) else {
             return AXFrameWriteResult(observed: Self.readFrame(element), succeeded: false)
@@ -603,7 +739,7 @@ private final class AXContext: @unchecked Sendable {
         return AXFrameWriteResult(
             observed: observed,
             succeeded: sizeError == .success && positionError == .success
-                && observed?.approximatelyEquals(frame, tolerance: 4) == true
+                && observed?.approximatelyEquals(frame, tolerance: FramePlacement.tolerance) == true
         )
     }
 
@@ -686,10 +822,14 @@ final class WindowSystem: NSObject {
     var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)?
     var onFrame: ((WindowToken, CGRect) -> Void)?
     var onApplicationActivated: ((pid_t) -> Void)?
+    var onReorder: (() -> Void)?
     private var contexts: [pid_t: AXContext] = [:]
     private var windows: [WindowToken: AXWindowSnapshot] = [:]
     private let skyLight = SkyLight()
     private var reconcileTimer: Timer?
+    private var observesWindowEvents = false
+    private var watchedWindows: [CGWindowID] = []
+    private var cachedMouseSurfaces: [MouseSurface]?
 
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
@@ -715,6 +855,14 @@ final class WindowSystem: NSObject {
         center.addObserver(self, selector: #selector(applicationDeactivated), name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(activeSpaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        observesWindowEvents = skyLight.startWindowEvents { [weak self] type, id in
+            // SkyLight delivers on the main thread, from the AppKit event loop.
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.windowEvent(type, id) }
+            } else {
+                Task { @MainActor [weak self] in self?.windowEvent(type, id) }
+            }
+        }
         for application in NSWorkspace.shared.runningApplications { add(application) }
         let timer = Timer(timeInterval: 0.5, target: self, selector: #selector(reconcileClosedWindows), userInfo: nil, repeats: true)
         RunLoop.main.add(timer, forMode: .common)
@@ -726,9 +874,13 @@ final class WindowSystem: NSObject {
         NotificationCenter.default.removeObserver(self)
         reconcileTimer?.invalidate()
         reconcileTimer = nil
+        if observesWindowEvents { skyLight.stopWindowEvents() }
+        observesWindowEvents = false
+        watchedWindows.removeAll()
         contexts.values.forEach { $0.stop() }
         contexts.removeAll()
         windows.removeAll()
+        cachedMouseSurfaces = nil
     }
 
     func rescan() { contexts.values.forEach { $0.scan() } }
@@ -763,16 +915,29 @@ final class WindowSystem: NSObject {
         NSRunningApplication(processIdentifier: token.pid)?.activate(options: [.activateAllWindows])
         skyLight.orderFront(token.id)
         contexts[token.pid]?.focus(window.element)
+        cachedMouseSurfaces = nil
     }
 
     func contains(_ token: WindowToken, bundleID: String) -> Bool {
         windows[token]?.bundleID == bundleID
     }
 
+    /// Fetched at most once per main-actor turn: one drain of events can lay
+    /// out many times, and the window list is a WindowServer round trip.
     var mouseSurfaces: [MouseSurface] {
+        if let cachedMouseSurfaces { return cachedMouseSurfaces }
+        let surfaces = loadMouseSurfaces()
+        cachedMouseSurfaces = surfaces
+        Task { @MainActor [weak self] in self?.cachedMouseSurfaces = nil }
+        return surfaces
+    }
+
+    private func loadMouseSurfaces() -> [MouseSurface] {
         guard let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else { return [] }
+        let ownPID = ProcessInfo.processInfo.processIdentifier
         return list.compactMap { item in
-            guard let pid = (item[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value,
+            // TrimWM's own border sits at its target's level but never takes the mouse.
+            guard let pid = (item[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value, pid != ownPID,
                   let id = (item[kCGWindowNumber as String] as? NSNumber)?.uint32Value,
                   let bounds = item[kCGWindowBounds as String] as? NSDictionary,
                   let frame = CGRect(dictionaryRepresentation: bounds as CFDictionary),
@@ -794,8 +959,10 @@ final class WindowSystem: NSObject {
     @objc private func applicationTerminated(_ notification: Notification) {
         guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
         let pid = application.processIdentifier
-        contexts.removeValue(forKey: pid)?.stop()
+        contexts.removeValue(forKey: pid)?.stop(restoringEnhancedUI: false)
         windows = windows.filter { $0.key.pid != pid }
+        cachedMouseSurfaces = nil
+        watchWindowEvents()
         onUpdate?(pid, [])
     }
 
@@ -839,6 +1006,7 @@ final class WindowSystem: NSObject {
             pid: pid,
             bundleID: bundleID,
             skyLight: skyLight,
+            observesFrames: !observesWindowEvents,
             onScan: { [weak self] pid, scanned in
                 Task { @MainActor [weak self] in self?.accept(pid: pid, scanned: scanned) }
             },
@@ -853,7 +1021,27 @@ final class WindowSystem: NSObject {
     private func accept(pid: pid_t, scanned: [AXWindowSnapshot]) {
         windows = windows.filter { $0.key.pid != pid }
         for window in scanned { windows[window.token] = window }
+        cachedMouseSurfaces = nil
+        watchWindowEvents()
         onUpdate?(pid, scanned)
+    }
+
+    private func watchWindowEvents() {
+        guard observesWindowEvents else { return }
+        let ids = windows.keys.map(\.id).sorted()
+        guard ids != watchedWindows else { return }
+        watchedWindows = ids
+        skyLight.watchWindows(ids)
+    }
+
+    private func windowEvent(_ type: UInt32, _ id: CGWindowID) {
+        if type == SkyLightEvent.windowReordered {
+            cachedMouseSurfaces = nil
+            onReorder?()
+            return
+        }
+        guard let token = windows.keys.first(where: { $0.id == id }), let frame = skyLight.bounds(id) else { return }
+        accept(frame: frame, for: token)
     }
 
     private func accept(frame: CGRect, for token: WindowToken) {

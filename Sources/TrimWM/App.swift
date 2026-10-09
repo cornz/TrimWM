@@ -8,6 +8,31 @@ enum FocusBorderGeometry {
         return macOSMajorVersion >= 27 ? 16 + strokeWidth : 9
     }
 
+    /// The ring's inner edge follows the window's own corners; a configured
+    /// radius sets the outer edge, as it does for the panel border.
+    static func ringRadii(
+        configured: CGFloat?,
+        windowRadius: CGFloat?,
+        strokeWidth: CGFloat,
+        macOSMajorVersion: Int
+    ) -> (inner: CGFloat, outer: CGFloat) {
+        if let configured { return (max(0, configured - strokeWidth), configured) }
+        let inner = max(0, windowRadius ?? cornerRadius(
+            configured: nil, strokeWidth: strokeWidth, macOSMajorVersion: macOSMajorVersion
+        ) - strokeWidth)
+        return (inner, inner + strokeWidth)
+    }
+
+    /// The frame's center in screen coordinates. Frames are global top-left;
+    /// screen frames are bottom-left around the primary screen.
+    static func screenPoint(of frame: CGRect, primaryScreenFrame: CGRect) -> CGPoint {
+        CGPoint(x: frame.midX, y: primaryScreenFrame.maxY - frame.midY)
+    }
+
+    /// How far the ring reaches into the window: macOS draws a 1-point
+    /// highlight inside every window edge and a hairline outside it.
+    static let windowRimOverlap: CGFloat = 1
+
     static func strokeWidth(configured: CGFloat, scale: CGFloat, minimum: CGFloat) -> CGFloat {
         max(minimum, configured * scale)
     }
@@ -104,6 +129,78 @@ final class FocusBorder {
     }
 }
 
+/// The focus border: a SkyLight window kept directly above the focused window,
+/// or the panel border where SkyLight's window functions are unavailable.
+@MainActor
+final class WindowBorder {
+    private let skyLight = SkyLight()
+    private let ring = SkyLightBorder()
+    private let fallback = FocusBorder()
+    private var style = BorderStyle()
+    private var target: FocusBorderTarget?
+    private var windowRadius: CGFloat?
+    private var spaceID: UInt64?
+
+    func apply(_ style: BorderStyle) {
+        self.style = style
+        if ring == nil { fallback.apply(style) } else { update(target) }
+    }
+
+    func update(_ target: FocusBorderTarget?) {
+        guard let ring else {
+            fallback.update(target?.frame)
+            return
+        }
+        if target?.window != self.target?.window || self.target == nil {
+            windowRadius = target.flatMap { skyLight.cornerRadius($0.window) }
+            spaceID = target.flatMap(space)
+        }
+        self.target = target
+        let width = max(0, style.width)
+        guard let target, width > 0,
+              let color = style.color.nsColor.usingColorSpace(.sRGB),
+              let primary = NSScreen.screens.first
+        else {
+            ring.hide()
+            return
+        }
+        // WindowServer's bounds, as JankyBorders and Dinky use: the frame the
+        // window is drawn at, even before an Accessibility frame catches up.
+        let frame = skyLight.bounds(target.window) ?? target.frame
+        let radii = FocusBorderGeometry.ringRadii(
+            configured: style.radius,
+            windowRadius: windowRadius,
+            strokeWidth: width,
+            macOSMajorVersion: ProcessInfo.processInfo.operatingSystemVersion.majorVersion
+        )
+        let point = FocusBorderGeometry.screenPoint(of: frame, primaryScreenFrame: primary.frame)
+        let screen = NSScreen.screens.first { $0.frame.contains(point) } ?? primary
+        ring.show(
+            BorderRing(
+                size: frame.size,
+                width: width,
+                overlap: FocusBorderGeometry.windowRimOverlap,
+                innerRadius: radii.inner,
+                outerRadius: radii.outer,
+                red: color.redComponent,
+                green: color.greenComponent,
+                blue: color.blueComponent,
+                alpha: color.alphaComponent
+            ),
+            around: frame,
+            above: target.window,
+            scale: screen.backingScaleFactor,
+            spaceID: spaceID
+        )
+    }
+
+    private func space(of target: FocusBorderTarget) -> UInt64? {
+        guard let spaces = skyLight.windowSpaceIDs(target.window) else { return nil }
+        if let current = skyLight.currentMainSpaceID(), spaces.contains(current) { return current }
+        return spaces.min()
+    }
+}
+
 private extension BorderColor {
     var nsColor: NSColor {
         switch self {
@@ -170,7 +267,7 @@ enum TrimWMMain {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var controller: WMController?
-    private let focusBorder = FocusBorder()
+    private let focusBorder = WindowBorder()
     private let dragTargetBorder = FocusBorder(widthScale: 2, minimumWidth: 4, fillOpacity: 0.1)
     private var dragCursorPushed = false
 
@@ -180,7 +277,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
         let controller = WMController()
         controller.onStatus = { [weak self] status, error in self?.updateMenu(status: status, error: error) }
-        controller.onFocusFrame = { [weak self] frame in self?.focusBorder.update(frame) }
+        controller.onFocusBorder = { [weak self] target in self?.focusBorder.update(target) }
         controller.onColumnDragFeedback = { [weak self] active, frame in
             self?.updateColumnDragFeedback(active: active, frame: frame)
         }

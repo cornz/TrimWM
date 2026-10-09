@@ -20,6 +20,18 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(window, b)
     }
 
+    func testCoalescesWindowReorders() {
+        var buffer = EventBuffer()
+        buffer.insert(.windowsReordered)
+        buffer.insert(.mouse(a))
+        buffer.insert(.windowsReordered)
+        let events = buffer.takeAll()
+        XCTAssertEqual(events.count, 2)
+        guard case .windowsReordered = events[0], case .mouse = events[1] else {
+            return XCTFail("unexpected event order")
+        }
+    }
+
     func testCommandsAreNeverCoalesced() {
         var buffer = EventBuffer()
         buffer.insert(.command(.workspace(1)))

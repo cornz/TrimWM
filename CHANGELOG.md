@@ -5,6 +5,46 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.8.0] — 9 October 2026
+
+Changes
+
+- License TrimWM under MIT instead of GPL-2.0-only from this release on.
+- Keep the README short and move configuration and details to `docs/`.
+
+New features
+
+- Reload the configuration automatically when it is saved, also when it is a
+  symlink.
+
+Improvements
+
+- Track window moves and resizes through WindowServer notifications instead of
+  asking each app, so busy apps no longer delay layout updates.
+- Remember minimum sizes apps refuse to shrink below across launches, so new
+  windows of those apps are laid out correctly the first time.
+- Write frames faster by checking each app's enhanced accessibility mode once
+  per burst of writes instead of on every write.
+- Reuse the on-screen window list within one layout pass.
+- Draw the focus border as a window of its own directly above the focused
+  window: windows in front of the focused window now cover the border too, and
+  it moves with the focused window's Space instead of showing on every Space.
+- Cover the window's own edge rim with the focus border, so no seam shows
+  between the border and the window's content.
+- Match the focus border to each window's actual corner radius with
+  `border radius auto` instead of assuming 16 points.
+- Reshape, redraw, and move the focus border in one screen update, so it no
+  longer flickers while windows resize.
+
+Bug fixes
+
+- Move windows that are only a few points off their target, so changing gaps
+  places every window correctly instead of leaving some offset by the gap
+  difference.
+- Draw the focus border around the window's actual frame, so it stays on the
+  window edge while resizing and around windows that snap to a grid or refuse
+  a size.
+
 ## [0.7.0] — 17 September 2026
 
 New features
@@ -163,7 +203,9 @@ Testing
   Accessibility isolation, serial event processing, pure layout engines,
   crash-safe hidden-window recovery, and no session restoration.
 
-[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/cornz/TrimWM/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/cornz/TrimWM/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/cornz/TrimWM/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cornz/TrimWM/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cornz/TrimWM/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/cornz/TrimWM/compare/v0.4.1...v0.5.0

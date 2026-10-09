@@ -35,11 +35,18 @@ enum CommandTargetResolver {
     }
 }
 
+/// The window the focus border surrounds and its observed frame.
+struct FocusBorderTarget: Equatable, Sendable {
+    let window: CGWindowID
+    let frame: CGRect
+}
+
 @MainActor
 protocol WindowSystemControlling: AnyObject {
     var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)? { get set }
     var onFrame: ((WindowToken, CGRect) -> Void)? { get set }
     var onApplicationActivated: ((pid_t) -> Void)? { get set }
+    var onReorder: (() -> Void)? { get set }
     var mouseSurfaces: [MouseSurface] { get }
     func start()
     func stop()
@@ -93,6 +100,7 @@ struct ControllerEnvironment {
     var openTextFile: (URL) throws -> Void
     var openAccessibilitySettings: () -> Void
     var terminate: () -> Void
+    var watchConfig: (URL, @escaping @MainActor () -> Void) -> AnyObject? = { _, _ in nil }
 
     static var live: ControllerEnvironment {
         ControllerEnvironment(
@@ -118,7 +126,8 @@ struct ControllerEnvironment {
                     URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
                 )
             },
-            terminate: { NSApplication.shared.terminate(nil) }
+            terminate: { NSApplication.shared.terminate(nil) },
+            watchConfig: { url, onChange in ConfigWatcher(url: url, onChange: onChange) }
         )
     }
 }
@@ -126,7 +135,7 @@ struct ControllerEnvironment {
 @MainActor
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
-    var onFocusFrame: ((CGRect?) -> Void)?
+    var onFocusBorder: ((FocusBorderTarget?) -> Void)?
     var onColumnDragFeedback: ((Bool, CGRect?) -> Void)?
     var onBorderStyle: ((BorderStyle) -> Void)?
     private(set) var isEnabled = false
@@ -141,12 +150,15 @@ final class WMController {
     private(set) var world = World()
     private var native: [WindowToken: AXWindowSnapshot] = [:]
     private var frameConstraints = FrameConstraintCache()
+    private var appMinimumSizes: AppMinimumSizes
     private var ledger = FrameLedger()
     private var journal: CrashJournal
     private var mode = "default"
     private var systemStarted = false
     private var lastError: String?
     private var published: (status: String, error: String?)?
+    private var configWatcher: AnyObject?
+    private var loadedConfigSource: String?
 
     private let configURL: URL
 
@@ -165,7 +177,8 @@ final class WMController {
             journal: CrashJournal(
                 url: applicationSupport.appending(path: "TrimWM/crash-journal.json"),
                 bootID: Self.bootID()
-            )
+            ),
+            appMinimumSizes: AppMinimumSizes(url: applicationSupport.appending(path: "TrimWM/minimum-sizes.json"))
         )
     }
 
@@ -175,7 +188,8 @@ final class WMController {
         mouse: any MouseControlling,
         environment: ControllerEnvironment,
         configURL: URL,
-        journal: CrashJournal
+        journal: CrashJournal,
+        appMinimumSizes: AppMinimumSizes = AppMinimumSizes(url: nil)
     ) {
         self.windowSystem = windowSystem
         self.hotKeys = hotKeys
@@ -184,6 +198,7 @@ final class WMController {
         self.configURL = configURL
         config = (try? ConfigParser.parse(Self.defaultConfig)) ?? WMConfig()
         self.journal = journal
+        self.appMinimumSizes = appMinimumSizes
 
         hotKeys.onCommand = { [weak self] command in
             self?.events.push(.command(command))
@@ -203,10 +218,12 @@ final class WMController {
         windowSystem.onUpdate = { [weak self] pid, windows in self?.events.push(.windows(pid, windows)) }
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
+        windowSystem.onReorder = { [weak self] in self?.events.push(.windowsReordered) }
         events.onDrain = { [weak self] pending in self?.handle(pending) }
     }
 
     func start() {
+        configWatcher = environment.watchConfig(configURL) { [weak self] in self?.configFileChanged() }
         reload()
         if environment.isTrusted() { enable() }
         else {
@@ -244,7 +261,7 @@ final class WMController {
         isEnabled = false
         hotKeys.unregister()
         mouse.stop()
-        onFocusFrame?(nil)
+        onFocusBorder?(nil)
         onColumnDragFeedback?(false, nil)
         restoreJournal()
         publish()
@@ -256,11 +273,18 @@ final class WMController {
         environment.terminate()
     }
 
+    /// Reloads when a save changed the file's content.
+    private func configFileChanged() {
+        let source = try? String(contentsOf: configURL, encoding: .utf8)
+        guard source != loadedConfigSource else { return }
+        reload()
+    }
+
     func reload() {
         do {
-            let source = FileManager.default.fileExists(atPath: configURL.path)
-                ? try String(contentsOf: configURL, encoding: .utf8)
-                : Self.defaultConfig
+            let exists = FileManager.default.fileExists(atPath: configURL.path)
+            let source = exists ? try String(contentsOf: configURL, encoding: .utf8) : Self.defaultConfig
+            loadedConfigSource = exists ? source : nil
             let parsed = try ConfigParser.parse(source)
             try ConfigValidator.validate(parsed)
             if isEnabled, parsed.workspaceCount != config.workspaceCount {
@@ -312,17 +336,20 @@ final class WMController {
             case let .mouseResize(window, direction, pixels): resizeFromMouse(window, direction: direction, pixels: pixels)
             case let .mouseColumnMove(window, target): moveColumnFromMouse(window, to: target)
             case let .mouseColumnDragFeedback(feedback): publishColumnDragFeedback(feedback)
+            case .windowsReordered: republishFocusBorder()
             case let .frameWriteResult(window, frame, result):
                 guard isEnabled else { continue }
                 switch ledger.completed(frame, for: window, result: result) {
                 case .none: break
                 case let .write(next): write(next, to: window)
                 case let .refused(observed):
-                    if let observed,
-                       let learned = FrameConstraintLearner.minimum(target: frame, observed: observed),
-                       frameConstraints.learn(learned, for: window) {
-                        applyLayout()
-                    }
+                    guard let observed else { break }
+                    let learnedForApp = native[window].map {
+                        appMinimumSizes.refused(target: frame, observed: observed, bundleID: $0.bundleID)
+                    } ?? false
+                    let learnedForWindow = FrameConstraintLearner.minimum(target: frame, observed: observed)
+                        .map { frameConstraints.learn($0, for: window) } ?? false
+                    if learnedForWindow || learnedForApp { applyLayout() }
                 }
             }
         }
@@ -466,7 +493,7 @@ final class WMController {
                     frontToBack: windowSystem.mouseSurfaces,
                     columnDraggable: columnDraggableWindows
                 )
-                publishFocusFrame(desired, bounds: bounds)
+                publishFocusBorder(desired, bounds: bounds)
                 publish()
                 return
             }
@@ -479,21 +506,36 @@ final class WMController {
             frontToBack: windowSystem.mouseSurfaces,
             columnDraggable: columnDraggableWindows
         )
-        publishFocusFrame(desired, bounds: bounds)
+        publishFocusBorder(desired, bounds: bounds)
         publish()
     }
 
-    private func publishFocusFrame(_ desired: [WindowToken: CGRect], bounds: CGRect) {
+    /// The border is ordered directly above its target once; after windows
+    /// are reordered it is placed above its target again.
+    private func republishFocusBorder() {
+        guard isEnabled else { return }
+        let bounds = environment.mainScreenBounds()
+        publishFocusBorder(
+            world.visibleFrames(bounds: bounds, gaps: config.gaps, minimumSizes: minimumSizes),
+            bounds: bounds
+        )
+    }
+
+    private func publishFocusBorder(_ desired: [WindowToken: CGRect], bounds: CGRect) {
+        // The border follows the window's observed frame, not the layout's:
+        // a window that snaps to a grid, refuses a size, or is still on its
+        // way would otherwise sit inside or outside its border.
         guard let window = world.visible.focused,
               window.pid == environment.frontmostPID(),
-              native[window]?.isOnCurrentSpace == true,
-              let frame = desired[window],
-              frame.intersects(bounds)
+              let snapshot = native[window],
+              snapshot.isOnCurrentSpace,
+              desired[window]?.intersects(bounds) == true,
+              snapshot.frame.intersects(bounds)
         else {
-            onFocusFrame?(nil)
+            onFocusBorder?(nil)
             return
         }
-        onFocusFrame?(frame)
+        onFocusBorder?(FocusBorderTarget(window: window.id, frame: snapshot.frame))
     }
 
     func execute(_ command: WMCommand) {
@@ -638,9 +680,10 @@ final class WMController {
     private var minimumSizes: [WindowToken: CGSize] {
         native.mapValues { snapshot in
             let learned = frameConstraints.value(for: snapshot.token) ?? CGSize(width: 1, height: 1)
+            let app = appMinimumSizes.value(for: snapshot.bundleID) ?? CGSize(width: 1, height: 1)
             return CGSize(
-                width: max(1, snapshot.minimumSize.width, learned.width),
-                height: max(1, snapshot.minimumSize.height, learned.height)
+                width: max(1, snapshot.minimumSize.width, learned.width, app.width),
+                height: max(1, snapshot.minimumSize.height, learned.height, app.height)
             )
         }
     }
