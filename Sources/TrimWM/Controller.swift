@@ -101,6 +101,7 @@ struct ControllerEnvironment {
     var openAccessibilitySettings: () -> Void
     var terminate: () -> Void
     var watchConfig: (URL, @escaping @MainActor () -> Void) -> AnyObject? = { _, _ in nil }
+    var after: (TimeInterval, @escaping @MainActor () -> Void) -> Void = { _, work in work() }
 
     static var live: ControllerEnvironment {
         ControllerEnvironment(
@@ -127,7 +128,10 @@ struct ControllerEnvironment {
                 )
             },
             terminate: { NSApplication.shared.terminate(nil) },
-            watchConfig: { url, onChange in ConfigWatcher(url: url, onChange: onChange) }
+            watchConfig: { url, onChange in ConfigWatcher(url: url, onChange: onChange) },
+            after: { delay, work in
+                DispatchQueue.main.asyncAfter(deadline: .now() + delay) { MainActor.assumeIsolated { work() } }
+            }
         )
     }
 }
@@ -342,6 +346,11 @@ final class WMController {
                 switch ledger.completed(frame, for: window, result: result) {
                 case .none: break
                 case let .write(next): write(next, to: window)
+                case let .retry(next):
+                    environment.after(FrameLedger.retryDelay) { [weak self] in
+                        guard let self, isEnabled, ledger.isWritingFrame(for: window) else { return }
+                        write(next, to: window)
+                    }
                 case let .refused(observed):
                     guard let observed else { break }
                     let learnedForApp = native[window].map {
@@ -360,6 +369,7 @@ final class WMController {
         snapshot.frame = frame
         acceptFloatingFrame(snapshot)
         ledger.observed(frame, for: window)
+        forgetMinimums(below: snapshot)
         let bounds = environment.mainScreenBounds()
         let isManaged = world.workspace(of: window) != nil
         if Geometry.shouldReconcileRestoredWindow(
@@ -422,6 +432,7 @@ final class WMController {
             }
             acceptFloatingFrame(window)
             ledger.observed(window.frame, for: window.token)
+            forgetMinimums(below: window)
         }
         if environment.frontmostPID() == pid,
            let focused = windows.first(where: { incoming.contains($0.token) && $0.isFocused }),
@@ -674,6 +685,15 @@ final class WMController {
     private func write(_ frame: CGRect, to window: WindowToken) {
         windowSystem.setFrame(frame, for: window) { [weak self] result in
             self?.events.push(.frameWriteResult(window, frame, result))
+        }
+    }
+
+    /// A window seen below a learned minimum proves it wrong. Only tiled
+    /// windows speak for their app: its dialogs and panels may be smaller.
+    private func forgetMinimums(below window: AXWindowSnapshot) {
+        frameConstraints.observed(window.frame.size, for: window.token)
+        if window.disposition == .tiled {
+            appMinimumSizes.observed(window.frame.size, bundleID: window.bundleID)
         }
     }
 

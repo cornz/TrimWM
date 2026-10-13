@@ -626,12 +626,80 @@ final class ControllerTests: XCTestCase {
         let other = WindowToken(pid: 41, id: 2)
         harness.controller.start()
 
-        harness.controller.handle([.windows(40, [snapshot(wide, x: 0, bundleID: "com.example.wide")])])
+        harness.controller.handle([.windows(40, [snapshot(wide, x: 0, width: 700, bundleID: "com.example.wide")])])
         harness.controller.handle([.windows(41, [snapshot(other, x: 500)])])
 
         let frames = Dictionary(harness.windowSystem.writes.map { ($0.0, $0.1) }, uniquingKeysWith: { $1 })
         XCTAssertGreaterThanOrEqual(frames[wide]!.width, 700)
         XCTAssertLessThanOrEqual(frames[other]!.width, 300)
+    }
+
+    func testLearnedAppMinimumIsForgottenOnceAWindowOfThatAppIsSeenBelowIt() {
+        var minimums = AppMinimumSizes(url: nil)
+        for target in [400.0, 300.0] {
+            _ = minimums.refused(
+                target: CGRect(x: 0, y: 0, width: target, height: 600),
+                observed: CGRect(x: 0, y: 0, width: 1000, height: 600),
+                bundleID: "com.example.slow"
+            )
+        }
+        let harness = makeHarness(appMinimumSizes: minimums)
+        let slow = WindowToken(pid: 40, id: 1)
+        let other = WindowToken(pid: 41, id: 2)
+        harness.windowSystem.writeResult = { _, frame in AXFrameWriteResult(observed: frame, succeeded: true) }
+        harness.controller.start()
+        harness.controller.handle([.windows(40, [snapshot(slow, x: 0, width: 1000, bundleID: "com.example.slow")])])
+        harness.controller.handle([.windows(41, [snapshot(other, x: 500)])])
+        settleWrites(harness)
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == other }?.1.width, 1000)
+
+        harness.controller.handle([.frameObserved(slow, CGRect(x: 0, y: 0, width: 500, height: 600))])
+        harness.controller.handle([.windows(41, [])])
+        settleWrites(harness)
+        let next = WindowToken(pid: 42, id: 3)
+        harness.controller.handle([.windows(42, [snapshot(next, x: 500)])])
+        settleWrites(harness)
+
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == next }?.1, CGRect(x: 500, y: 0, width: 500, height: 600))
+    }
+
+    func testSlowlyAppliedFrameIsWrittenAgainLaterInsteadOfLearnedAsMinimum() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "TrimWMControllerTests-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appending(path: "minimum-sizes.json")
+        let harness = makeHarness(appMinimumSizes: AppMinimumSizes(url: url))
+        let slow = WindowToken(pid: 40, id: 1)
+        let other = WindowToken(pid: 41, id: 2)
+        let half = CGRect(x: 0, y: 0, width: 500, height: 600)
+        // Like Warp: the app applies a write on its own event loop, so its
+        // frame read right after the write is still the old one.
+        var applied = CGRect(x: 0, y: 0, width: 1000, height: 600)
+        harness.windowSystem.writeResult = { token, frame in
+            let observed = token == slow ? applied : frame
+            return AXFrameWriteResult(observed: observed, succeeded: observed == frame)
+        }
+        harness.controller.start()
+        harness.controller.handle([.windows(40, [snapshot(slow, x: 0, width: 1000, bundleID: "com.example.slow")])])
+        harness.controller.handle([.windows(41, [snapshot(other, x: 500)])])
+        settleWrites(harness)
+
+        XCTAssertEqual(harness.environment.delays, [FrameLedger.retryDelay])
+        applied = half
+        harness.controller.handle([.frameObserved(slow, half)])
+        harness.environment.runDelayed()
+        settleWrites(harness)
+
+        XCTAssertNil(AppMinimumSizes(url: url).value(for: "com.example.slow"))
+        let frames = Dictionary(harness.windowSystem.writes.map { ($0.0, $0.1) }, uniquingKeysWith: { $1 })
+        XCTAssertEqual(frames[slow], half)
+        XCTAssertEqual(frames[other], CGRect(x: 500, y: 0, width: 500, height: 600))
+    }
+
+    private func settleWrites(_ harness: ControllerHarness) {
+        while !harness.windowSystem.results.isEmpty {
+            harness.controller.handle(harness.windowSystem.takeResults())
+        }
     }
 
     private func makeHarness(
@@ -674,6 +742,7 @@ final class ControllerTests: XCTestCase {
     private func snapshot(
         _ token: WindowToken,
         x: CGFloat,
+        width: CGFloat = 400,
         focused: Bool = false,
         isOnScreen: Bool = true,
         disposition: WindowDisposition = .tiled,
@@ -683,7 +752,7 @@ final class ControllerTests: XCTestCase {
             token: token,
             bundleID: bundleID,
             title: "\(token.id)",
-            frame: CGRect(x: x, y: 0, width: 400, height: 300),
+            frame: CGRect(x: x, y: 0, width: width, height: 300),
             disposition: disposition,
             isFocused: focused,
             isOnScreen: isOnScreen,
@@ -720,6 +789,9 @@ private final class FakeWindowSystem: WindowSystemControlling {
     var writes: [(WindowToken, CGRect)] = []
     var syncWrites: [(WindowToken, CGRect)] = []
     var focused: [WindowToken] = []
+    /// When set, write results are held for the test to hand to the controller.
+    var writeResult: ((WindowToken, CGRect) -> AXFrameWriteResult)?
+    var results: [WMEvent] = []
 
     func start() { startCount += 1 }
     func stop() { stopCount += 1 }
@@ -732,7 +804,16 @@ private final class FakeWindowSystem: WindowSystemControlling {
         completion: @escaping @Sendable (AXFrameWriteResult) -> Void
     ) {
         writes.append((token, frame))
-        completion(AXFrameWriteResult(observed: frame, succeeded: true))
+        guard let writeResult else {
+            completion(AXFrameWriteResult(observed: frame, succeeded: true))
+            return
+        }
+        results.append(.frameWriteResult(token, frame, writeResult(token, frame)))
+    }
+
+    func takeResults() -> [WMEvent] {
+        defer { results.removeAll() }
+        return results
     }
 
     func setFrameSync(_ frame: CGRect, for token: WindowToken) -> Bool {
@@ -810,6 +891,8 @@ private final class TestControllerEnvironment {
     var openedTextFiles: [URL] = []
     var shellError: Error?
     var configChanged: (@MainActor () -> Void)?
+    var delays: [TimeInterval] = []
+    private var delayed: [@MainActor () -> Void] = []
     let bounds: CGRect
 
     init(trusted: Bool, bounds: CGRect) {
@@ -834,8 +917,18 @@ private final class TestControllerEnvironment {
             watchConfig: { _, onChange in
                 self.configChanged = onChange
                 return NSObject()
+            },
+            after: { delay, work in
+                self.delays.append(delay)
+                self.delayed.append(work)
             }
         )
+    }
+
+    func runDelayed() {
+        let work = delayed
+        delayed.removeAll()
+        for item in work { item() }
     }
 }
 

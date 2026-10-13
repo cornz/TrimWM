@@ -115,8 +115,9 @@ best-effort attempt. No workspace, layout, focus, or session state is saved.
 
 Minimum sizes that apps refuse to shrink below are remembered in
 `~/Library/Application Support/TrimWM/minimum-sizes.json`, so new windows of
-those apps are laid out correctly the first time. Delete the file to forget
-them.
+those apps are laid out correctly the first time. A remembered minimum is
+forgotten once a window of the app is seen smaller. Delete the file to forget
+them all.
 
 To uninstall, choose **Quit TrimWM** first, remove the app, then remove its
 Accessibility and Login Items entries. The config may be retained or deleted.

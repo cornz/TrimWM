@@ -142,7 +142,7 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertFalse(ledger.needsWrite(target, for: window))
         XCTAssertEqual(
             ledger.completed(target, for: window, result: .init(observed: partial, succeeded: false)),
-            .write(target)
+            .retry(target)
         )
         XCTAssertEqual(
             ledger.completed(target, for: window, result: .init(observed: partial, succeeded: false)),
@@ -162,7 +162,7 @@ final class WindowSystemTests: XCTestCase {
         ledger.observed(original, for: window)
         XCTAssertTrue(ledger.needsWrite(target, for: window))
         let failure = AXFrameWriteResult(observed: original, succeeded: false)
-        XCTAssertEqual(ledger.completed(target, for: window, result: failure), .write(target))
+        XCTAssertEqual(ledger.completed(target, for: window, result: failure), .retry(target))
         XCTAssertEqual(ledger.completed(target, for: window, result: failure), .refused(original))
         XCTAssertFalse(ledger.needsWrite(target, for: window))
 
@@ -189,7 +189,7 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertTrue(ledger.needsWrite(shiftedByGap, for: window))
         XCTAssertEqual(
             ledger.completed(shiftedByGap, for: window, result: .init(observed: placed, succeeded: false)),
-            .write(shiftedByGap)
+            .retry(shiftedByGap)
         )
     }
 
@@ -279,7 +279,7 @@ final class WindowSystemTests: XCTestCase {
         )
         XCTAssertEqual(
             ledger.completed(current, for: window, result: .init(observed: old, succeeded: false)),
-            .write(current)
+            .retry(current)
         )
     }
 
@@ -399,6 +399,18 @@ final class WindowSystemTests: XCTestCase {
         XCTAssertNil(cache.value(for: window))
     }
 
+    func testFrameConstraintCacheForgetsMinimumsTheWindowIsSeenBelow() {
+        let window = WindowToken(pid: 4, id: 5)
+        var cache = FrameConstraintCache()
+        XCTAssertTrue(cache.learn(CGSize(width: 1000, height: 485), for: window))
+
+        XCTAssertFalse(cache.observed(CGSize(width: 998, height: 600), for: window))
+        XCTAssertEqual(cache.value(for: window), CGSize(width: 1000, height: 485))
+        XCTAssertTrue(cache.observed(CGSize(width: 500, height: 600), for: window))
+        XCTAssertEqual(cache.value(for: window), CGSize(width: 1, height: 485))
+        XCTAssertFalse(cache.observed(CGSize(width: 500, height: 600), for: WindowToken(pid: 4, id: 6)))
+    }
+
     func testFrameConstraintCacheResetForgetsAllWindows() {
         let first = WindowToken(pid: 4, id: 5)
         let second = WindowToken(pid: 6, id: 7)
@@ -452,6 +464,49 @@ final class WindowSystemTests: XCTestCase {
             ))
         }
         XCTAssertNil(sizes.value(for: app))
+    }
+
+    func testAppMinimumSizesForgetMinimumsAndRefusalsAWindowIsSeenBelow() {
+        var sizes = AppMinimumSizes(url: nil)
+        let app = "dev.warp.Warp-Stable"
+        // A window that had not applied either write yet still reports its old width.
+        for target in [1027.0, 990.0] {
+            _ = sizes.refused(
+                target: CGRect(x: 0, y: 0, width: target, height: 600),
+                observed: CGRect(x: 0, y: 0, width: 2054, height: 600),
+                bundleID: app
+            )
+        }
+        XCTAssertEqual(sizes.value(for: app), CGSize(width: 2054, height: 1))
+
+        XCTAssertFalse(sizes.observed(CGSize(width: 2054, height: 600), bundleID: app))
+        XCTAssertTrue(sizes.observed(CGSize(width: 1027, height: 600), bundleID: app))
+        XCTAssertNil(sizes.value(for: app))
+
+        // A pending refusal the app is seen below no longer confirms a later one.
+        _ = sizes.refused(target: CGRect(x: 0, y: 0, width: 1027, height: 600), observed: CGRect(x: 0, y: 0, width: 1140, height: 600), bundleID: app)
+        XCTAssertFalse(sizes.observed(CGSize(width: 1027, height: 600), bundleID: app))
+        XCTAssertFalse(sizes.refused(target: CGRect(x: 0, y: 0, width: 990, height: 600), observed: CGRect(x: 0, y: 0, width: 1140, height: 600), bundleID: app))
+        XCTAssertNil(sizes.value(for: app))
+        XCTAssertFalse(sizes.observed(CGSize(width: 10, height: 10), bundleID: "com.example.unknown"))
+    }
+
+    func testAppMinimumSizesIgnoreUnversionedFilesFromEarlierReleases() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appending(path: "TrimWMMinimumSizes-\(UUID().uuidString)/minimum-sizes.json")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try Data(#"{"dev.warp.Warp-Stable":{"height":192,"width":2054}}"#.utf8).write(to: url)
+
+        var sizes = AppMinimumSizes(url: url)
+        XCTAssertNil(sizes.value(for: "dev.warp.Warp-Stable"))
+
+        for target in [500.0, 300.0] {
+            _ = sizes.refused(target: CGRect(x: 0, y: 0, width: target, height: 600), observed: CGRect(x: 0, y: 0, width: 574, height: 600), bundleID: "com.apple.Safari")
+        }
+        let reloaded = AppMinimumSizes(url: url)
+        XCTAssertEqual(reloaded.value(for: "com.apple.Safari"), CGSize(width: 574, height: 1))
+        XCTAssertNil(reloaded.value(for: "dev.warp.Warp-Stable"))
     }
 
     func testAppMinimumSizesPersistConfirmedSizesAndPendingRefusals() throws {

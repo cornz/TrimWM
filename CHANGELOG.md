@@ -5,6 +5,17 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.8.1] — 13 October 2026
+
+Bug fixes
+
+- Stop remembering an app's old size as its minimum when it applies a resize
+  late, as Warp does: TrimWM now checks a refused resize again a moment later.
+  Such a minimum kept the app from sharing the screen side by side, so its
+  windows were always stacked.
+- Forget a remembered minimum size once a window of the app is seen smaller.
+- Ignore minimum sizes remembered by 0.8.0; they are learned again as needed.
+
 ## [0.8.0] — 9 October 2026
 
 Changes

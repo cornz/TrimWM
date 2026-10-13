@@ -158,6 +158,10 @@ struct EnhancedUIBurst: Equatable, Sendable {
 enum FrameWriteDecision: Equatable, Sendable {
     case none
     case write(CGRect)
+    /// Writes the frame again after `FrameLedger.retryDelay`: apps that apply
+    /// a frame on their own event loop still report the old one right after
+    /// a write, which must not count as a refusal.
+    case retry(CGRect)
     case refused(CGRect?)
 }
 
@@ -183,13 +187,26 @@ struct FrameConstraintCache: Sendable {
         entries[window] = updated
         return old != updated
     }
+
+    /// Forgets a learned minimum the window has since been seen below.
+    @discardableResult
+    mutating func observed(_ size: CGSize, for window: WindowToken, tolerance: CGFloat = 4) -> Bool {
+        guard let old = entries[window] else { return false }
+        let updated = CGSize(
+            width: size.width + tolerance < old.width ? 1 : old.width,
+            height: size.height + tolerance < old.height ? 1 : old.height
+        )
+        entries[window] = updated
+        return old != updated
+    }
 }
 
 /// Minimum sizes apps refused to shrink below, by bundle ID, kept across
 /// launches so a new window of a known app is laid out right the first time.
 /// A refusal only becomes a minimum once another refusal with a clearly
 /// different target lands on the same size: windows that snap to a grid, like
-/// Terminal's, land near each target instead.
+/// Terminal's, land near each target instead. A minimum is forgotten once a
+/// window of the app is seen below it.
 struct AppMinimumSizes {
     private struct Refusal: Codable, Equatable {
         var target: CGFloat
@@ -203,6 +220,14 @@ struct AppMinimumSizes {
         var heightRefusal: Refusal?
     }
 
+    /// Files from 0.8.0 are unversioned and are not read: it confirmed sizes
+    /// that windows still had because they had not applied a write yet.
+    private struct Store: Codable {
+        var version = AppMinimumSizes.version
+        var apps: [String: Entry]
+    }
+
+    static let version = 2
     static let confirmationDistance: CGFloat = 32
     let url: URL?
     private var entries: [String: Entry] = [:]
@@ -210,8 +235,9 @@ struct AppMinimumSizes {
     init(url: URL?) {
         self.url = url
         if let url, let data = try? Data(contentsOf: url),
-           let decoded = try? JSONDecoder().decode([String: Entry].self, from: data) {
-            entries = decoded
+           let decoded = try? JSONDecoder().decode(Store.self, from: data),
+           decoded.version == Self.version {
+            entries = decoded.apps
         }
     }
 
@@ -235,6 +261,31 @@ struct AppMinimumSizes {
         entries[bundleID] = entry
         save()
         return widthGrew || heightGrew
+    }
+
+    /// Forgets minimums and pending refusals a window of the app has been
+    /// seen below. Returns whether a minimum was forgotten.
+    @discardableResult
+    mutating func observed(_ size: CGSize, bundleID: String, tolerance: CGFloat = 4) -> Bool {
+        guard var entry = entries[bundleID] else { return false }
+        let widthForgotten = Self.forget(below: size.width, tolerance: tolerance, refusal: &entry.widthRefusal, minimum: &entry.width)
+        let heightForgotten = Self.forget(below: size.height, tolerance: tolerance, refusal: &entry.heightRefusal, minimum: &entry.height)
+        guard entries[bundleID] != entry else { return false }
+        entries[bundleID] = entry
+        save()
+        return widthForgotten || heightForgotten
+    }
+
+    private static func forget(
+        below observed: CGFloat,
+        tolerance: CGFloat,
+        refusal: inout Refusal?,
+        minimum: inout CGFloat
+    ) -> Bool {
+        if let pending = refusal, observed + tolerance < pending.observed { refusal = nil }
+        guard observed + tolerance < minimum else { return false }
+        minimum = 1
+        return true
     }
 
     private static func learn(
@@ -262,12 +313,14 @@ struct AppMinimumSizes {
         guard let url else { return }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(entries).write(to: url, options: .atomic)
+            try JSONEncoder().encode(Store(apps: entries)).write(to: url, options: .atomic)
         } catch {}
     }
 }
 
 struct FrameLedger: Sendable {
+    static let retryDelay: TimeInterval = 0.25
+
     private struct Entry: Sendable {
         var observed: CGRect?
         var desired: CGRect?
@@ -400,7 +453,7 @@ struct FrameLedger: Sendable {
             entry.retries = 1
             entry.inFlight = frame
             entries[window] = entry
-            return .write(frame)
+            return .retry(frame)
         }
         entries[window] = entry
         return .refused(result.observed)
