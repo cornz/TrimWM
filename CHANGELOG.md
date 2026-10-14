@@ -5,6 +5,16 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.2] — 14 October 2026
+
+Improvements
+
+- Leave out the focus border around a WM-fullscreen window and the active tab:
+  each is the only tiled window in view. Focused floating windows keep their
+  border.
+- Add `border single-window false` to also leave out the border around the
+  only window of a BSP or Niri workspace.
+
 ## [0.9.1] — 14 October 2026
 
 New features

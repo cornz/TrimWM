@@ -207,6 +207,26 @@ final class TabsLayoutTests: XCTestCase {
         XCTAssertEqual(layout.bar.position, .left)
     }
 
+    func testFocusBorderOnlyMarksAWindowAmongSeveral() {
+        let gaps = LayoutGaps()
+        var workspace = WorkspaceState()
+        XCTAssertFalse(workspace.showsFocusBorder(singleWindow: true))
+        workspace.add(token(1), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        XCTAssertTrue(workspace.showsFocusBorder(singleWindow: true))
+        XCTAssertFalse(workspace.showsFocusBorder(singleWindow: false))
+        workspace.add(token(2), floating: nil, bounds: bounds, gaps: gaps, splitRatio: 1)
+        XCTAssertTrue(workspace.showsFocusBorder(singleWindow: false))
+
+        workspace.fullscreen = token(2)
+        XCTAssertFalse(workspace.showsFocusBorder(singleWindow: true))
+        workspace.fullscreen = nil
+
+        workspace.changeLayout(to: .tabs, bounds: bounds, gaps: gaps, splitRatio: 1)
+        XCTAssertFalse(workspace.showsFocusBorder(singleWindow: true))
+        workspace.add(token(3), floating: CGRect(x: 100, y: 100, width: 300, height: 200), bounds: bounds, gaps: gaps, splitRatio: 1)
+        XCTAssertTrue(workspace.showsFocusBorder(singleWindow: false))
+    }
+
     func testConvertingToTabsKeepsOrderAndFocusAndBack() {
         var world = World()
         let gaps = LayoutGaps()

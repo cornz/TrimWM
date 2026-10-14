@@ -13,6 +13,7 @@ start-at-login true
 border color accent
 border width 2
 border radius auto
+border single-window true
 
 bindsym $mod+j focus left
 bindsym $mod+k focus down

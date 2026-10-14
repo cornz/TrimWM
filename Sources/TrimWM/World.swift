@@ -126,6 +126,18 @@ struct WorkspaceState: Equatable, Sendable {
         if fullscreen == window { fullscreen = nil }
     }
 
+    /// Whether the focused window needs a border to stand out. A WM-fullscreen
+    /// window or the active tab is the only tiled window in view, and so is
+    /// the only window of a workspace unless `singleWindow` keeps its border.
+    /// Floating windows always keep theirs.
+    func showsFocusBorder(singleWindow: Bool) -> Bool {
+        guard let focused else { return false }
+        if floating[focused] != nil { return true }
+        if fullscreen == focused { return false }
+        if case .tabs = layout { return false }
+        return singleWindow || layout.windows.count > 1
+    }
+
     mutating func setFocus(
         _ window: WindowToken,
         bounds: CGRect,

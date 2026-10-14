@@ -105,9 +105,15 @@ border color accent
 #               border color 0x0A84FFFF
 border width 2
 border radius auto
+border single-window true
 ```
 
-Only one `border color` line is needed. A width of `0` hides the border. The
+Only one `border color` line is needed. A width of `0` hides the border.
+
+The border marks the focused window among several. A WM-fullscreen window and
+the active tab are the only tiled window in view, so they have no border; a
+focused floating window above them keeps its own. `border single-window false`
+also leaves out the border of the only window on a BSP or Niri workspace. The
 border sits outside the window, so `gaps inner` of at least twice the border
 width leaves visible space beside it.
 

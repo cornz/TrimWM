@@ -34,6 +34,8 @@ struct BorderStyle: Equatable, Sendable {
     var width: CGFloat = 2
     // nil follows the system default; numeric values remain explicit outer radii.
     var radius: CGFloat? = nil
+    /// Whether the only window of a BSP or Niri workspace has a border.
+    var singleWindow = true
 }
 
 struct WMConfig: Equatable, Sendable {
@@ -176,7 +178,7 @@ enum ConfigParser {
             case "start-at-login":
                 config.startAtLogin = try boolean(fields, line: number)
             case "border":
-                guard fields.count == 3 else { throw ConfigError.line(number, "expected border color, width, or radius") }
+                guard fields.count == 3 else { throw ConfigError.line(number, "expected border color, width, radius, or single-window") }
                 switch fields[1] {
                 case "color":
                     config.border.color = try borderColor(fields[2], line: number)
@@ -194,8 +196,10 @@ enum ConfigParser {
                         throw ConfigError.line(number, "invalid border radius")
                     }
                     config.border.radius = value
+                case "single-window":
+                    config.border.singleWindow = try boolean(Array(fields.dropFirst()), line: number)
                 default:
-                    throw ConfigError.line(number, "border must configure color, width, or radius")
+                    throw ConfigError.line(number, "border must configure color, width, radius, or single-window")
                 }
             case "bindsym":
                 guard fields.count >= 3 else { throw ConfigError.line(number, "binding needs chord and command") }

@@ -730,6 +730,14 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == warp }?.1, content)
         XCTAssertEqual(bars.last??.tabs.first(where: \.isActive)?.window, warp)
 
+        harness.environment.frontmostPID = 40
+        var borders: [FocusBorderTarget?] = []
+        harness.controller.onFocusBorder = { borders.append($0) }
+        harness.controller.execute(.layout(.autotile))
+        XCTAssertNotNil(borders.last ?? nil)
+        harness.controller.execute(.layout(.tabs))
+        XCTAssertEqual(borders.last, .some(nil))
+
         harness.controller.handle([.titleObserved(warp, "vim")])
         XCTAssertEqual(bars.last??.tabs.first?.title, "vim")
 

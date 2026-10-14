@@ -595,6 +595,7 @@ final class WMController {
         // a window that snaps to a grid, refuses a size, or is still on its
         // way would otherwise sit inside or outside its border.
         guard let window = world.visible.focused,
+              world.visible.showsFocusBorder(singleWindow: config.border.singleWindow),
               window.pid == environment.frontmostPID(),
               let snapshot = native[window],
               snapshot.isOnCurrentSpace,
@@ -895,6 +896,7 @@ final class WMController {
     border color accent
     border width 2
     border radius auto
+    border single-window true
     bindsym $mod+j focus left
     bindsym $mod+k focus down
     bindsym $mod+l focus up
