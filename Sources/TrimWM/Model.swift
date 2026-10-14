@@ -27,6 +27,7 @@ struct LayoutGaps: Equatable, Sendable {
 enum LayoutMode: String, Codable, Sendable {
     case autotile
     case niri
+    case tabs
 }
 
 extension CGRect {

@@ -3,17 +3,26 @@ import CoreGraphics
 enum WorkspaceLayout: Equatable, Sendable {
     case autotile(BSPLayout)
     case niri(NiriLayout)
+    case tabs(TabsLayout)
 
     var mode: LayoutMode {
-        switch self { case .autotile: .autotile; case .niri: .niri }
+        switch self { case .autotile: .autotile; case .niri: .niri; case .tabs: .tabs }
     }
 
     var windows: [WindowToken] {
-        switch self { case let .autotile(layout): layout.windows; case let .niri(layout): layout.windows }
+        switch self {
+        case let .autotile(layout): layout.windows
+        case let .niri(layout): layout.windows
+        case let .tabs(layout): layout.windows
+        }
     }
 
     var focused: WindowToken? {
-        switch self { case let .autotile(layout): layout.focused; case let .niri(layout): layout.focused }
+        switch self {
+        case let .autotile(layout): layout.focused
+        case let .niri(layout): layout.focused
+        case let .tabs(layout): layout.focused
+        }
     }
 
     mutating func insert(
@@ -31,6 +40,9 @@ enum WorkspaceLayout: Equatable, Sendable {
             layout.insert(window)
             layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
             self = .niri(layout)
+        case var .tabs(layout):
+            layout.insert(window)
+            self = .tabs(layout)
         }
     }
 
@@ -38,6 +50,7 @@ enum WorkspaceLayout: Equatable, Sendable {
         switch self {
         case var .autotile(layout): layout.remove(window); self = .autotile(layout)
         case var .niri(layout): layout.remove(window); self = .niri(layout)
+        case var .tabs(layout): layout.remove(window); self = .tabs(layout)
         }
     }
 
@@ -45,6 +58,7 @@ enum WorkspaceLayout: Equatable, Sendable {
         switch self {
         case var .autotile(layout): layout.focus(window); self = .autotile(layout)
         case var .niri(layout): layout.focus(window); self = .niri(layout)
+        case var .tabs(layout): layout.focus(window); self = .tabs(layout)
         }
     }
 
@@ -65,6 +79,9 @@ enum WorkspaceLayout: Equatable, Sendable {
                 layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
             }
             self = .niri(layout)
+        case var .tabs(layout):
+            layout.move(direction)
+            self = .tabs(layout)
         }
     }
 
@@ -76,6 +93,7 @@ enum WorkspaceLayout: Equatable, Sendable {
         switch self {
         case let .autotile(layout): layout.frames(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
         case let .niri(layout): layout.frames(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
+        case let .tabs(layout): layout.frames(in: bounds, gaps: gaps)
         }
     }
 }
@@ -147,6 +165,14 @@ struct WorkspaceState: Equatable, Sendable {
             self.focused = niri.focused
             return
         }
+        if let focused,
+           case var .tabs(tabs) = layout,
+           tabs.windows.contains(focused) {
+            tabs.focus(direction)
+            layout = .tabs(tabs)
+            self.focused = tabs.focused
+            return
+        }
         guard let focused,
               let next = Geometry.nearest(
                 from: focused,
@@ -179,15 +205,22 @@ struct WorkspaceState: Equatable, Sendable {
         bounds: CGRect,
         gaps: LayoutGaps,
         splitRatio: CGFloat,
+        tabBar: TabBarSettings = TabBarSettings(),
         minimumSizes: [WindowToken: CGSize] = [:]
     ) {
         guard layout.mode != mode else { return }
         let order = layout.windows
-        if mode == .niri {
+        switch mode {
+        case .niri:
             var converted = NiriLayout()
             for window in order { converted.insert(window) }
             layout = .niri(converted)
-        } else {
+        case .tabs:
+            var converted = TabsLayout()
+            converted.bar = tabBar
+            for window in order { converted.insert(window) }
+            layout = .tabs(converted)
+        case .autotile:
             var converted = BSPLayout()
             for window in order { converted.insert(window, in: bounds, gaps: gaps, splitRatio: splitRatio) }
             layout = .autotile(converted)
@@ -220,6 +253,7 @@ struct WorkspaceState: Equatable, Sendable {
 struct World: Equatable, Sendable {
     private(set) var workspaces: [WorkspaceState]
     private(set) var visibleWorkspace = 1
+    private(set) var tabBar = TabBarSettings()
 
     init(workspaceCount: Int = 10) {
         workspaces = Array(repeating: WorkspaceState(), count: max(1, workspaceCount))
@@ -231,11 +265,33 @@ struct World: Equatable, Sendable {
         workspaces.enumerated().compactMap { index, workspace in
             let number = index + 1
             guard number == visibleWorkspace || !workspace.windows.isEmpty else { return nil }
-            let layout = workspace.layout.mode == .autotile ? "T" : "N"
+            let layout = switch workspace.layout.mode {
+            case .autotile: "T"
+            case .niri: "N"
+            case .tabs: "B"
+            }
             let fullscreen = workspace.fullscreen == nil ? "" : "F"
             let label = "\(number)\(layout)\(fullscreen)"
             return number == visibleWorkspace ? "[\(label)]" : label
         }.joined(separator: " ")
+    }
+
+    /// The workspaces the menu bar shows: the visible one and occupied ones.
+    var statusWorkspaces: [StatusWorkspace] {
+        workspaces.enumerated().compactMap { index, workspace in
+            let number = index + 1
+            guard number == visibleWorkspace || !workspace.windows.isEmpty else { return nil }
+            let glyph: StatusGlyph = if workspace.fullscreen != nil {
+                .fullscreen
+            } else {
+                switch workspace.layout.mode {
+                case .autotile: .autotile
+                case .niri: .niri
+                case .tabs: tabBar.position == .top ? .tabsTop : .tabsLeft
+                }
+            }
+            return StatusWorkspace(number: number, glyph: glyph, isVisible: number == visibleWorkspace)
+        }
     }
 
     func workspace(of window: WindowToken) -> Int? {
@@ -277,6 +333,15 @@ struct World: Equatable, Sendable {
         if let fullscreen = workspaces[index].fullscreen,
            window == fullscreen || window.pid != fullscreen.pid { return }
         workspaces[index].floating[window] = frame
+    }
+
+    mutating func setTabBar(_ settings: TabBarSettings) {
+        tabBar = settings
+        for index in workspaces.indices {
+            guard case var .tabs(layout) = workspaces[index].layout else { continue }
+            layout.bar = settings
+            workspaces[index].layout = .tabs(layout)
+        }
     }
 
     mutating func setNiriSingleWindowFullWidth(_ enabled: Bool) {
@@ -326,6 +391,7 @@ struct World: Equatable, Sendable {
             bounds: bounds,
             gaps: gaps,
             splitRatio: splitRatio,
+            tabBar: tabBar,
             minimumSizes: minimumSizes
         )
     }
@@ -435,6 +501,8 @@ struct World: Equatable, Sendable {
             layout.swapColumn(containing: window, with: target)
             layout.revealFocused(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
             workspace.layout = .niri(layout)
+        case .tabs:
+            return
         }
         workspaces[visibleWorkspace - 1] = workspace
     }
@@ -461,6 +529,8 @@ struct World: Equatable, Sendable {
                 layout.resizeFocusedVertically(direction, by: pixels, viewportHeight: bounds.height)
             }
             workspace.layout = .niri(layout)
+        case .tabs:
+            return
         }
         workspaces[visibleWorkspace - 1] = workspace
     }

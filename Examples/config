@@ -6,6 +6,8 @@ gaps inner 0
 gaps outer 0
 autotile split-ratio 1.0
 niri single-window-full-width true
+tabs position top
+tabs autohide false
 focus-follows-mouse true
 start-at-login true
 border color accent
@@ -27,6 +29,7 @@ bindsym $mod+v split vertical
 bindsym $mod+f fullscreen
 bindsym $mod+w layout niri
 bindsym $mod+Shift+e layout autotile
+bindsym $mod+t layout tabs
 bindsym $mod+Shift+space floating toggle
 bindsym $mod+comma consume left
 bindsym $mod+period consume right

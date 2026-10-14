@@ -41,12 +41,27 @@ struct FocusBorderTarget: Equatable, Sendable {
     let frame: CGRect
 }
 
+struct TabBarTab: Equatable, Sendable {
+    let window: WindowToken
+    let title: String
+    let isActive: Bool
+}
+
+/// The tab bar of the visible workspace when it shows tabs.
+struct TabBarModel: Equatable, Sendable {
+    let frame: CGRect
+    let settings: TabBarSettings
+    let tabs: [TabBarTab]
+    let border: BorderStyle
+}
+
 @MainActor
 protocol WindowSystemControlling: AnyObject {
     var onUpdate: ((pid_t, [AXWindowSnapshot]) -> Void)? { get set }
     var onFrame: ((WindowToken, CGRect) -> Void)? { get set }
     var onApplicationActivated: ((pid_t) -> Void)? { get set }
     var onReorder: (() -> Void)? { get set }
+    var onTitle: ((WindowToken, String) -> Void)? { get set }
     var mouseSurfaces: [MouseSurface] { get }
     func start()
     func stop()
@@ -139,7 +154,9 @@ struct ControllerEnvironment {
 @MainActor
 final class WMController {
     var onStatus: ((String, String?) -> Void)?
+    var onWorkspaces: (([StatusWorkspace]) -> Void)?
     var onFocusBorder: ((FocusBorderTarget?) -> Void)?
+    var onTabBar: ((TabBarModel?) -> Void)?
     var onColumnDragFeedback: ((Bool, CGRect?) -> Void)?
     var onBorderStyle: ((BorderStyle) -> Void)?
     private(set) var isEnabled = false
@@ -161,6 +178,8 @@ final class WMController {
     private var systemStarted = false
     private var lastError: String?
     private var published: (status: String, error: String?)?
+    private var publishedWorkspaces: [StatusWorkspace]?
+    private var publishedTabBar: TabBarModel?
     private var configWatcher: AnyObject?
     private var loadedConfigSource: String?
 
@@ -223,6 +242,7 @@ final class WMController {
         windowSystem.onFrame = { [weak self] window, frame in self?.events.push(.frameObserved(window, frame)) }
         windowSystem.onApplicationActivated = { [weak self] _ in self?.applyLayout() }
         windowSystem.onReorder = { [weak self] in self?.events.push(.windowsReordered) }
+        windowSystem.onTitle = { [weak self] window, title in self?.events.push(.titleObserved(window, title)) }
         events.onDrain = { [weak self] pending in self?.handle(pending) }
     }
 
@@ -247,6 +267,7 @@ final class WMController {
         catch { publish(error: "Hotkeys: \(error)"); return }
         mode = "default"
         world = World(workspaceCount: config.workspaceCount)
+        world.setTabBar(config.tabs)
         native.removeAll()
         frameConstraints.reset()
         ledger.reset()
@@ -266,6 +287,7 @@ final class WMController {
         hotKeys.unregister()
         mouse.stop()
         onFocusBorder?(nil)
+        publishTabBar(bounds: environment.mainScreenBounds())
         onColumnDragFeedback?(false, nil)
         restoreJournal()
         publish()
@@ -297,6 +319,7 @@ final class WMController {
             if isEnabled { try hotKeys.register(parsed.bindings["default"] ?? []) }
             config = parsed
             world.setNiriSingleWindowFullWidth(config.niriSingleWindowFullWidth)
+            world.setTabBar(config.tabs)
             onBorderStyle?(config.border)
             mode = "default"
             lastError = nil
@@ -335,6 +358,7 @@ final class WMController {
             switch event {
             case let .windows(pid, windows): accept(pid: pid, windows: windows)
             case let .frameObserved(window, frame): accept(frame: frame, for: window)
+            case let .titleObserved(window, title): accept(title: title, for: window)
             case let .command(command): execute(command)
             case let .mouse(window): focusFromMouse(window)
             case let .mouseResize(window, direction, pixels): resizeFromMouse(window, direction: direction, pixels: pixels)
@@ -390,6 +414,12 @@ final class WMController {
             }
         }
         applyLayout()
+    }
+
+    private func accept(title: String, for window: WindowToken) {
+        guard isEnabled, let snapshot = native[window] else { return }
+        snapshot.title = title
+        publishTabBar(bounds: environment.mainScreenBounds())
     }
 
     private func accept(pid: pid_t, windows: [AXWindowSnapshot]) {
@@ -505,6 +535,7 @@ final class WMController {
                     columnDraggable: columnDraggableWindows
                 )
                 publishFocusBorder(desired, bounds: bounds)
+                publishTabBar(bounds: bounds)
                 publish()
                 return
             }
@@ -518,7 +549,34 @@ final class WMController {
             columnDraggable: columnDraggableWindows
         )
         publishFocusBorder(desired, bounds: bounds)
+        publishTabBar(bounds: bounds)
         publish()
+    }
+
+    private func publishTabBar(bounds: CGRect) {
+        var model: TabBarModel?
+        if isEnabled,
+           world.visible.fullscreen == nil,
+           case let .tabs(layout) = world.visible.layout,
+           layout.focused.flatMap({ native[$0]?.isOnCurrentSpace }) == true,
+           let frame = layout.barFrame(in: bounds, gaps: config.gaps) {
+            model = TabBarModel(
+                frame: frame,
+                settings: layout.bar,
+                tabs: layout.windows.map {
+                    TabBarTab(window: $0, title: native[$0]?.title ?? "", isActive: $0 == layout.focused)
+                },
+                border: config.border
+            )
+        }
+        guard model != publishedTabBar else { return }
+        publishedTabBar = model
+        onTabBar?(model)
+    }
+
+    /// Shows the tab picked in the tab bar.
+    func selectTab(_ window: WindowToken) {
+        focusFromMouse(window)
     }
 
     /// The border is ordered directly above its target once; after windows
@@ -765,6 +823,8 @@ final class WMController {
         switch world.visible.layout {
         case .autotile:
             return frames[target]
+        case .tabs:
+            return nil
         case let .niri(layout):
             guard let column = layout.columns.first(where: { $0.windows.contains(target) }) else { return nil }
             let columnFrames = column.windows.compactMap { frames[$0] }
@@ -774,7 +834,7 @@ final class WMController {
     }
 
     private var columnDraggableWindows: Set<WindowToken> {
-        world.visible.fullscreen == nil ? Set(world.visible.layout.windows) : []
+        world.visible.fullscreen == nil && world.visible.layout.mode != .tabs ? Set(world.visible.layout.windows) : []
     }
 
     private func restoreJournal() {
@@ -799,6 +859,11 @@ final class WMController {
 
     private func publish(error: String? = nil) {
         if let error { lastError = error }
+        let workspaces = isEnabled ? world.statusWorkspaces : []
+        if workspaces != publishedWorkspaces {
+            publishedWorkspaces = workspaces
+            onWorkspaces?(workspaces)
+        }
         let next = (isEnabled ? world.statusText : "Paused", lastError)
         guard published?.status != next.0 || published?.error != next.1 else { return }
         published = next
@@ -823,6 +888,8 @@ final class WMController {
     gaps outer 0
     autotile split-ratio 1.0
     niri single-window-full-width true
+    tabs position top
+    tabs autohide false
     focus-follows-mouse true
     start-at-login true
     border color accent
@@ -842,6 +909,7 @@ final class WMController {
     bindsym $mod+f fullscreen
     bindsym $mod+w layout niri
     bindsym $mod+Shift+e layout autotile
+    bindsym $mod+t layout tabs
     bindsym $mod+Shift+space floating toggle
     bindsym $mod+comma consume left
     bindsym $mod+period consume right

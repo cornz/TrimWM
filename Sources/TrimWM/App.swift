@@ -268,6 +268,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var controller: WMController?
     private let focusBorder = WindowBorder()
+    private let tabBar = TabBar()
+    private var statusText = ""
+    private var workspaces: [StatusWorkspace] = []
     private let dragTargetBorder = FocusBorder(widthScale: 2, minimumWidth: 4, fillOpacity: 0.1)
     private var dragCursorPushed = false
 
@@ -278,6 +281,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let controller = WMController()
         controller.onStatus = { [weak self] status, error in self?.updateMenu(status: status, error: error) }
         controller.onFocusBorder = { [weak self] target in self?.focusBorder.update(target) }
+        controller.onTabBar = { [weak self] model in self?.tabBar.update(model) }
+        controller.onWorkspaces = { [weak self] workspaces in
+            self?.workspaces = workspaces
+            self?.updateStatusButton()
+        }
+        tabBar.onSelect = { [weak controller] window in controller?.selectTab(window) }
         controller.onColumnDragFeedback = { [weak self] active, frame in
             self?.updateColumnDragFeedback(active: active, frame: frame)
         }
@@ -297,7 +306,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func updateMenu(status: String, error: String?) {
         let version = AppMetadata.version()
-        statusItem?.button?.title = status
+        statusText = status
+        updateStatusButton()
         statusItem?.button?.toolTip = "TrimWM \(version)"
         let menu = NSMenu()
         let state = NSMenuItem(
@@ -324,6 +334,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(withTitle: "Quit TrimWM", action: #selector(quit), keyEquivalent: "q")
         for item in menu.items { if item.action != nil { item.target = self } }
         statusItem?.menu = menu
+    }
+
+    /// Workspaces show as numbers with layout glyphs; a paused or starting
+    /// manager shows its status as text.
+    private func updateStatusButton() {
+        guard let button = statusItem?.button else { return }
+        if workspaces.isEmpty {
+            button.image = nil
+            button.title = statusText
+        } else {
+            button.image = StatusIcons.image(for: workspaces)
+            button.imagePosition = .imageOnly
+            button.title = ""
+        }
     }
 
     @objc private func enable() { controller?.enable() }

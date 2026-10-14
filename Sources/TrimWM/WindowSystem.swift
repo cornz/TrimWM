@@ -51,14 +51,13 @@ enum WindowClassifier {
 
 enum AXFrameWriteOrder: Equatable, Sendable { case sizeThenPosition, positionThenSize }
 
-enum AXNotificationRoute: Equatable, Sendable { case frame, scan }
+enum AXNotificationRoute: Equatable, Sendable { case frame, title, scan }
 
 enum AXNotificationRouter {
     static func route(_ notification: String) -> AXNotificationRoute {
-        notification == (kAXWindowMovedNotification as String)
-            || notification == (kAXWindowResizedNotification as String)
-            ? .frame
-            : .scan
+        if notification == kAXWindowMovedNotification || notification == kAXWindowResizedNotification { return .frame }
+        if notification == kAXTitleChangedNotification { return .title }
+        return .scan
     }
 }
 
@@ -466,7 +465,7 @@ struct FrameLedger: Sendable {
 final class AXWindowSnapshot: @unchecked Sendable {
     let token: WindowToken
     let bundleID: String
-    let title: String
+    var title: String
     var frame: CGRect
     let disposition: WindowDisposition
     let isFocused: Bool
@@ -531,6 +530,7 @@ private func TrimWMObserverCallback(
     let context = Unmanaged<AXContext>.fromOpaque(refcon).takeUnretainedValue()
     switch AXNotificationRouter.route(notification as String) {
     case .frame: context.refreshFrame(element)
+    case .title: context.refreshTitle(element)
     case .scan: context.scan()
     }
 }
@@ -544,6 +544,7 @@ private final class AXContext: @unchecked Sendable {
     private let skyLight: SkyLight
     private let onScan: @Sendable (pid_t, [AXWindowSnapshot]) -> Void
     private let onFrame: @Sendable (WindowToken, CGRect) -> Void
+    private let onTitle: @Sendable (WindowToken, String) -> Void
     private let observesFrames: Bool
     private var observer: AXObserver?
     private var observerSource: CFRunLoopSource?
@@ -562,7 +563,8 @@ private final class AXContext: @unchecked Sendable {
         skyLight: SkyLight,
         observesFrames: Bool,
         onScan: @escaping @Sendable (pid_t, [AXWindowSnapshot]) -> Void,
-        onFrame: @escaping @Sendable (WindowToken, CGRect) -> Void
+        onFrame: @escaping @Sendable (WindowToken, CGRect) -> Void,
+        onTitle: @escaping @Sendable (WindowToken, String) -> Void
     ) {
         self.pid = pid
         self.bundleID = bundleID
@@ -570,6 +572,7 @@ private final class AXContext: @unchecked Sendable {
         self.observesFrames = observesFrames
         self.onScan = onScan
         self.onFrame = onFrame
+        self.onTitle = onTitle
         application = AXUIElementCreateApplication(pid)
         queue = DispatchQueue(label: "de.cornz.TrimWM.ax.\(pid)", qos: .userInteractive)
         AXUIElementSetMessagingTimeout(application, 0.5)
@@ -643,6 +646,14 @@ private final class AXContext: @unchecked Sendable {
                   let frame = Self.readFrame(box.element)
             else { return }
             onFrame(WindowToken(pid: pid, id: id), frame)
+        }
+    }
+
+    func refreshTitle(_ element: AXUIElement) {
+        let box = AXElementBox(element)
+        queue.async { [self] in
+            guard stateLock.withLock({ !stopped }), let id = resolver.id(for: box.element) else { return }
+            onTitle(WindowToken(pid: pid, id: id), string(box.element, kAXTitleAttribute as String) ?? "")
         }
     }
 
@@ -721,7 +732,12 @@ private final class AXContext: @unchecked Sendable {
             return self.observer
         }) else { return }
         let refcon = Unmanaged.passUnretained(self).toOpaque()
-        var notifications = [kAXUIElementDestroyedNotification, kAXWindowMiniaturizedNotification, kAXWindowDeminiaturizedNotification]
+        var notifications = [
+            kAXUIElementDestroyedNotification,
+            kAXWindowMiniaturizedNotification,
+            kAXWindowDeminiaturizedNotification,
+            kAXTitleChangedNotification,
+        ]
         if observesFrames { notifications += [kAXWindowMovedNotification, kAXWindowResizedNotification] }
         for notification in notifications {
             AXObserverAddNotification(observer, element, notification as CFString, refcon)
@@ -876,6 +892,7 @@ final class WindowSystem: NSObject {
     var onFrame: ((WindowToken, CGRect) -> Void)?
     var onApplicationActivated: ((pid_t) -> Void)?
     var onReorder: (() -> Void)?
+    var onTitle: ((WindowToken, String) -> Void)?
     private var contexts: [pid_t: AXContext] = [:]
     private var windows: [WindowToken: AXWindowSnapshot] = [:]
     private let skyLight = SkyLight()
@@ -1065,6 +1082,9 @@ final class WindowSystem: NSObject {
             },
             onFrame: { [weak self] token, frame in
                 Task { @MainActor [weak self] in self?.accept(frame: frame, for: token) }
+            },
+            onTitle: { [weak self] token, title in
+                Task { @MainActor [weak self] in self?.accept(title: title, for: token) }
             }
         )
         contexts[pid] = context
@@ -1101,6 +1121,12 @@ final class WindowSystem: NSObject {
         guard let window = windows[token] else { return }
         window.frame = frame
         onFrame?(token, frame)
+    }
+
+    private func accept(title: String, for token: WindowToken) {
+        guard let window = windows[token], window.title != title else { return }
+        window.title = title
+        onTitle?(token, title)
     }
 }
 

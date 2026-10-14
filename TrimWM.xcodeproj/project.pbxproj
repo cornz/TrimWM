@@ -19,6 +19,10 @@
 		A0000000000000000000010B /* Controller.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001B /* Controller.swift */; };
 		A0000000000000000000010C /* SkyLight.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001C /* SkyLight.swift */; };
 		A0000000000000000000010D /* EventQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001D /* EventQueue.swift */; };
+		A00000000000000000000141 /* TabsLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000041 /* TabsLayout.swift */; };
+		A00000000000000000000142 /* TabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000042 /* TabBar.swift */; };
+		A00000000000000000000143 /* StatusIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000043 /* StatusIcons.swift */; };
+		A00000000000000000000144 /* TabsLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000044 /* TabsLayoutTests.swift */; };
 		A0000000000000000000010E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A0000000000000000000001E /* Assets.xcassets */; };
 		A00000000000000000000111 /* BSPLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000021 /* BSPLayoutTests.swift */; };
 		A00000000000000000000112 /* NiriLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A00000000000000000000022 /* NiriLayoutTests.swift */; };
@@ -58,6 +62,10 @@
 		A0000000000000000000001B /* Controller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Controller.swift; sourceTree = "<group>"; };
 		A0000000000000000000001C /* SkyLight.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkyLight.swift; sourceTree = "<group>"; };
 		A0000000000000000000001D /* EventQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventQueue.swift; sourceTree = "<group>"; };
+		A00000000000000000000041 /* TabsLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabsLayout.swift; sourceTree = "<group>"; };
+		A00000000000000000000042 /* TabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabBar.swift; sourceTree = "<group>"; };
+		A00000000000000000000043 /* StatusIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusIcons.swift; sourceTree = "<group>"; };
+		A00000000000000000000044 /* TabsLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabsLayoutTests.swift; sourceTree = "<group>"; };
 		A0000000000000000000001E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A00000000000000000000021 /* BSPLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BSPLayoutTests.swift; sourceTree = "<group>"; };
 		A00000000000000000000022 /* NiriLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NiriLayoutTests.swift; sourceTree = "<group>"; };
@@ -124,6 +132,9 @@
 				A0000000000000000000001B /* Controller.swift */,
 				A0000000000000000000001C /* SkyLight.swift */,
 				A0000000000000000000001D /* EventQueue.swift */,
+				A00000000000000000000041 /* TabsLayout.swift */,
+				A00000000000000000000042 /* TabBar.swift */,
+				A00000000000000000000043 /* StatusIcons.swift */,
 				A0000000000000000000001E /* Assets.xcassets */,
 			);
 			path = TrimWM;
@@ -142,6 +153,7 @@
 				A00000000000000000000028 /* InputTests.swift */,
 				A00000000000000000000029 /* SkyLightTests.swift */,
 				A0000000000000000000002A /* EventQueueTests.swift */,
+				A00000000000000000000044 /* TabsLayoutTests.swift */,
 				A0000000000000000000002B /* PerformanceTests.swift */,
 				A0000000000000000000002C /* ControllerTests.swift */,
 			);
@@ -209,13 +221,13 @@
 		A00000000000000000000411 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A00000000000000000000101, A00000000000000000000102, A00000000000000000000103, A00000000000000000000104, A00000000000000000000105, A00000000000000000000106, A00000000000000000000107, A00000000000000000000108, A00000000000000000000109, A0000000000000000000010A, A0000000000000000000010B, A0000000000000000000010C, A0000000000000000000010D);
+			files = (A00000000000000000000101, A00000000000000000000102, A00000000000000000000103, A00000000000000000000104, A00000000000000000000105, A00000000000000000000106, A00000000000000000000107, A00000000000000000000108, A00000000000000000000109, A0000000000000000000010A, A0000000000000000000010B, A0000000000000000000010C, A0000000000000000000010D, A00000000000000000000141, A00000000000000000000142, A00000000000000000000143);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A00000000000000000000412 = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (A00000000000000000000111, A00000000000000000000112, A00000000000000000000113, A00000000000000000000114, A00000000000000000000115, A00000000000000000000116, A00000000000000000000117, A00000000000000000000118, A00000000000000000000119, A0000000000000000000011A, A0000000000000000000011B, A0000000000000000000011C);
+			files = (A00000000000000000000111, A00000000000000000000112, A00000000000000000000113, A00000000000000000000114, A00000000000000000000115, A00000000000000000000116, A00000000000000000000117, A00000000000000000000118, A00000000000000000000119, A0000000000000000000011A, A0000000000000000000011B, A0000000000000000000011C, A00000000000000000000144);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
@@ -227,8 +239,8 @@
 /* Begin XCBuildConfiguration section */
 		A00000000000000000000501 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Debug; };
 		A00000000000000000000502 = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 26.0; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_STRICT_CONCURRENCY = complete; SWIFT_TREAT_WARNINGS_AS_ERRORS = YES; SWIFT_VERSION = 6.0; }; name = Release; };
-		A00000000000000000000511 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 0.8.1; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
-		A00000000000000000000512 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 0.8.1; OTHER_CODE_SIGN_FLAGS = "--timestamp"; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; }; name = Release; };
+		A00000000000000000000511 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 0.9.0; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; }; name = Debug; };
+		A00000000000000000000512 = {isa = XCBuildConfiguration; buildSettings = {ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon; CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities"; INFOPLIST_KEY_LSUIElement = YES; INFOPLIST_KEY_NSAccessibilityUsageDescription = "TrimWM needs Accessibility access to arrange and focus windows."; MARKETING_VERSION = 0.9.0; OTHER_CODE_SIGN_FLAGS = "--timestamp"; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM; PRODUCT_MODULE_NAME = TrimWM; PRODUCT_NAME = TrimWM; }; name = Release; };
 		A00000000000000000000521 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM.Tests; PRODUCT_NAME = TrimWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrimWM.app/Contents/MacOS/TrimWM"; }; name = Debug; };
 		A00000000000000000000522 = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = de.cornz.TrimWM.Tests; PRODUCT_NAME = TrimWMTests; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrimWM.app/Contents/MacOS/TrimWM"; }; name = Release; };
 /* End XCBuildConfiguration section */

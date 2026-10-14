@@ -8,8 +8,8 @@ text editor. Saving the file reloads it automatically, including through a
 symlink into a dotfiles repository; `Option+Shift+C` still reloads it by hand.
 
 The syntax is deliberately a small i3/Sway-style command language rather than
-TOML or KDL. The parser supports only variables, gaps, layout options, border
-style, mouse focus, login launch, bindings and modes, exact bundle-ID
+TOML or KDL. The parser supports only variables, gaps, layout and tab bar
+options, border style, mouse focus, login launch, bindings and modes, exact bundle-ID
 assignments, and floating rules. Reload is transactional; an invalid file
 leaves the previous configuration active and displays the error in the menu.
 
@@ -22,6 +22,7 @@ leaves the previous configuration active and displays the error in the menu.
 - `Option+Control+1…8`: move without following
 - `Option+H/V`: force the next BSP split
 - `Option+W`: switch the current workspace to Niri
+- `Option+T`: switch the current workspace to tabs
 - `Option+Shift+E`: switch back to BSP autotiling
 - `Option+,/.`: consume into the existing column on the left/right
 - `Option+Shift+,/.`: expel into a new column on the left/right
@@ -58,6 +59,32 @@ removing it expands the remaining window again. Set the option to `false` to
 keep a single window at its normal column width.
 
 ![TrimWM arranging horizontally scrolling columns](../Design/Screenshots/trimwm-niri.png)
+
+### Tabs
+
+![TrimWM's tab bar at the top and on the left](../Design/Screenshots/trimwm-tabs.png)
+
+`layout tabs` stacks every window of the workspace in one frame, like tabs in
+a browser: only the active tab is shown, and a tab bar lists them with app
+icon and window title. Click a tab to show it. `focus left/right` and
+`focus up/down` step through the tabs, `focus next` cycles them, and
+`move left/right` reorders them. With a single window the bar is hidden and
+the window gets the whole screen. Floating windows are not tabs: they stay
+above the active tab, and `floating toggle` turns one into a tab.
+
+```text
+tabs position top    # or left
+tabs size auto       # bar height at the top, width on the left: 16 to 200
+tabs autohide false
+```
+
+The bar is a floating Liquid Glass island with the window's corner radius,
+6 points apart from the window. At the top it is 32 points high, and the
+active tab is a raised capsule with an accent dot. On the left it is a
+44-point rail of app icons with an accent mark on the active tab; it expands
+over the window to show titles while the pointer is on it. `tabs autohide true` gives the window the whole screen; the bar then
+appears over it briefly when the tabs change and while the pointer touches the
+screen edge where the bar sits.
 
 ## Focus
 

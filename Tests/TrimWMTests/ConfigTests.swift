@@ -165,6 +165,28 @@ final class ConfigTests: XCTestCase {
         }
     }
 
+    func testTabsSettingsAndLayoutCommand() throws {
+        XCTAssertEqual(try ConfigParser.parse("").tabs, TabBarSettings())
+        let config = try ConfigParser.parse("""
+        tabs position left
+        tabs size 44
+        tabs autohide true
+        """)
+        XCTAssertEqual(config.tabs, TabBarSettings(position: .left, size: 44, autohide: true))
+        XCTAssertNil(try ConfigParser.parse("tabs size 44\ntabs size auto").tabs.size)
+        XCTAssertEqual(try ConfigParser.parseCommand("layout tabs"), .layout(.tabs))
+        for source in [
+            "tabs position bottom",
+            "tabs size 8",
+            "tabs size huge",
+            "tabs autohide maybe",
+            "tabs style compact",
+            "tabs position",
+        ] {
+            XCTAssertThrowsError(try ConfigParser.parse(source), source)
+        }
+    }
+
     func testBorderColorsAcceptAccentRGBAndRGBA() throws {
         XCTAssertEqual(try ConfigParser.parse("border color accent").border.color, .accent)
         XCTAssertEqual(try ConfigParser.parse("border color A1B2C3").border.color, .rgba(0xa1, 0xb2, 0xc3, 0xff))

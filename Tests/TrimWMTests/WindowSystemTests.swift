@@ -27,6 +27,7 @@ final class WindowSystemTests: XCTestCase {
     func testOnlyMoveAndResizeNotificationsUseTargetedFrameRefresh() {
         XCTAssertEqual(AXNotificationRouter.route(kAXWindowMovedNotification as String), .frame)
         XCTAssertEqual(AXNotificationRouter.route(kAXWindowResizedNotification as String), .frame)
+        XCTAssertEqual(AXNotificationRouter.route(kAXTitleChangedNotification as String), .title)
         for notification in [
             kAXWindowCreatedNotification,
             kAXUIElementDestroyedNotification,

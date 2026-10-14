@@ -2,7 +2,8 @@
 
 ## Why TrimWM?
 
-TrimWM combines Niri-style scrolling columns with i3-style automatic tiling.
+TrimWM combines Niri-style scrolling columns with i3-style automatic tiling
+and browser-style tabs.
 
 - Fast and animation-free
 - No external dependencies or background network access
@@ -11,8 +12,9 @@ TrimWM combines Niri-style scrolling columns with i3-style automatic tiling.
 - Deliberately smaller than OmniWM and more layout-focused than AeroSpace
 
 TrimWM is a small, local tiling window manager for Apple Silicon Macs running
-macOS 26 or later. It has two layouts: i3-style BSP autotiling and a minimal
-Niri-style scrolling-column layout. It intentionally has no animations,
+macOS 26 or later. It has three layouts: i3-style BSP autotiling, a minimal
+Niri-style scrolling-column layout, and browser-style tabs. It intentionally
+has no animations,
 session restore, network access, external packages, or settings window.
 
 > TrimWM uses Accessibility and a few dynamically resolved private SkyLight
@@ -67,9 +69,12 @@ exist. See [Configuration](configuration.md).
 
 ## Status menu
 
-The menu-bar item changes from `Paused` to a status such as `[1N] 2T 5T` when
-enabled. Every occupied workspace is listed, and brackets mark the active one;
-`T`, `N`, and `F` mean Tiling, Niri, and WM-fullscreen.
+The menu-bar item changes from `Paused` to the workspaces when enabled. Every
+occupied workspace is listed with its number and a glyph for its layout: BSP
+tiling, Niri columns, tabs at the top or on the left, or WM-fullscreen. The
+active workspace is highlighted.
+
+![TrimWM's menu-bar glyphs for each layout](../Design/Screenshots/trimwm-status.png)
 
 ## Build from source
 

@@ -41,6 +41,7 @@ struct WMConfig: Equatable, Sendable {
     var gaps = LayoutGaps()
     var splitRatio: CGFloat = 1.0
     var niriSingleWindowFullWidth = true
+    var tabs = TabBarSettings()
     var focusFollowsMouse = true
     var startAtLogin = true
     var border = BorderStyle()
@@ -148,6 +149,28 @@ enum ConfigParser {
                       fields[2] == "true" || fields[2] == "false"
                 else { throw ConfigError.line(number, "invalid niri setting") }
                 config.niriSingleWindowFullWidth = fields[2] == "true"
+            case "tabs":
+                guard fields.count == 3 else { throw ConfigError.line(number, "expected tabs position, size, or autohide") }
+                switch fields[1] {
+                case "position":
+                    guard let value = TabBarPosition(rawValue: fields[2]) else {
+                        throw ConfigError.line(number, "tabs position must be top or left")
+                    }
+                    config.tabs.position = value
+                case "size":
+                    if fields[2] == "auto" {
+                        config.tabs.size = nil
+                        break
+                    }
+                    guard let value = Double(fields[2]), value.isFinite, value >= 16, value <= 200 else {
+                        throw ConfigError.line(number, "tabs size must be auto or 16 to 200")
+                    }
+                    config.tabs.size = value
+                case "autohide":
+                    config.tabs.autohide = try boolean(Array(fields.dropFirst()), line: number)
+                default:
+                    throw ConfigError.line(number, "tabs must configure position, size, or autohide")
+                }
             case "focus-follows-mouse":
                 config.focusFollowsMouse = try boolean(fields, line: number)
             case "start-at-login":

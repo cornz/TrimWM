@@ -696,6 +696,78 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(frames[other], CGRect(x: 500, y: 0, width: 500, height: 600))
     }
 
+    func testTabsShowOnlyTheActiveTabAndPublishTheTabBar() {
+        let harness = makeHarness()
+        var bars: [TabBarModel?] = []
+        var workspaces: [[StatusWorkspace]] = []
+        harness.controller.onTabBar = { bars.append($0) }
+        harness.controller.onWorkspaces = { workspaces.append($0) }
+        harness.windowSystem.writeResult = { _, frame in AXFrameWriteResult(observed: frame, succeeded: true) }
+        let warp = WindowToken(pid: 40, id: 1)
+        let edge = WindowToken(pid: 41, id: 2)
+        harness.controller.start()
+        harness.controller.handle([.windows(40, [snapshot(warp, x: 0, title: "zsh")])])
+        harness.controller.handle([.windows(41, [snapshot(edge, x: 500, title: "New Tab")])])
+        settleWrites(harness)
+        harness.windowSystem.writes.removeAll()
+
+        harness.controller.execute(.layout(.tabs))
+        settleWrites(harness)
+
+        let content = CGRect(x: 0, y: 38, width: 1000, height: 562)
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == edge }?.1, content)
+        XCTAssertLessThan(harness.windowSystem.writes.last { $0.0 == warp }!.1.maxX, bounds.minX + 2)
+        XCTAssertEqual(bars.last??.frame, CGRect(x: 0, y: 0, width: 1000, height: 32))
+        XCTAssertEqual(bars.last??.tabs, [
+            TabBarTab(window: warp, title: "zsh", isActive: false),
+            TabBarTab(window: edge, title: "New Tab", isActive: true),
+        ])
+        XCTAssertEqual(workspaces.last, [StatusWorkspace(number: 1, glyph: .tabsTop, isVisible: true)])
+
+        harness.controller.selectTab(warp)
+        settleWrites(harness)
+        XCTAssertEqual(harness.windowSystem.focused.last, warp)
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == warp }?.1, content)
+        XCTAssertEqual(bars.last??.tabs.first(where: \.isActive)?.window, warp)
+
+        harness.controller.handle([.titleObserved(warp, "vim")])
+        XCTAssertEqual(bars.last??.tabs.first?.title, "vim")
+
+        harness.controller.handle([.windows(41, [])])
+        settleWrites(harness)
+        XCTAssertEqual(bars.last, .some(nil))
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == warp }?.1, bounds)
+
+        harness.controller.disable()
+        XCTAssertEqual(workspaces.last, [])
+    }
+
+    func testTabBarFollowsConfiguredPositionAndHidesInFullscreen() throws {
+        let harness = makeHarness()
+        try FileManager.default.createDirectory(at: harness.configURL.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "tabs position left\ntabs size 40\n".write(to: harness.configURL, atomically: true, encoding: .utf8)
+        var bars: [TabBarModel?] = []
+        harness.controller.onTabBar = { bars.append($0) }
+        harness.windowSystem.writeResult = { _, frame in AXFrameWriteResult(observed: frame, succeeded: true) }
+        let first = WindowToken(pid: 40, id: 1)
+        let second = WindowToken(pid: 41, id: 2)
+        harness.controller.start()
+        harness.controller.handle([.windows(40, [snapshot(first, x: 0)])])
+        harness.controller.handle([.windows(41, [snapshot(second, x: 500)])])
+        harness.controller.execute(.layout(.tabs))
+        settleWrites(harness)
+
+        XCTAssertEqual(bars.last??.frame, CGRect(x: 0, y: 0, width: 40, height: 600))
+        XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == second }?.1, CGRect(x: 46, y: 0, width: 954, height: 600))
+
+        harness.windowSystem.liveFocused = second
+        harness.environment.frontmostPID = 41
+        harness.controller.execute(.fullscreen)
+        XCTAssertEqual(bars.last, .some(nil))
+        harness.controller.execute(.fullscreen)
+        XCTAssertEqual(bars.last??.settings.position, .left)
+    }
+
     private func settleWrites(_ harness: ControllerHarness) {
         while !harness.windowSystem.results.isEmpty {
             harness.controller.handle(harness.windowSystem.takeResults())
@@ -743,6 +815,7 @@ final class ControllerTests: XCTestCase {
         _ token: WindowToken,
         x: CGFloat,
         width: CGFloat = 400,
+        title: String? = nil,
         focused: Bool = false,
         isOnScreen: Bool = true,
         disposition: WindowDisposition = .tiled,
@@ -751,7 +824,7 @@ final class ControllerTests: XCTestCase {
         AXWindowSnapshot(
             token: token,
             bundleID: bundleID,
-            title: "\(token.id)",
+            title: title ?? "\(token.id)",
             frame: CGRect(x: x, y: 0, width: width, height: 300),
             disposition: disposition,
             isFocused: focused,
@@ -779,6 +852,7 @@ private final class FakeWindowSystem: WindowSystemControlling {
     var onFrame: ((WindowToken, CGRect) -> Void)?
     var onApplicationActivated: ((pid_t) -> Void)?
     var onReorder: (() -> Void)?
+    var onTitle: ((WindowToken, String) -> Void)?
     var mouseSurfaces: [MouseSurface] = []
     var liveFocused: WindowToken?
     var contained: [WindowToken: String] = [:]

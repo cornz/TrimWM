@@ -4,6 +4,7 @@ import Foundation
 enum WMEvent: Sendable {
     case windows(pid_t, [AXWindowSnapshot])
     case frameObserved(WindowToken, CGRect)
+    case titleObserved(WindowToken, String)
     case command(WMCommand)
     case mouse(WindowToken)
     case mouseResize(WindowToken, Direction, CGFloat)
@@ -38,6 +39,12 @@ struct EventBuffer {
         case let .frameObserved(window, _):
             if let index = events.lastIndex(where: {
                 if case let .frameObserved(existing, _) = $0 { existing == window } else { false }
+            }) {
+                events[index] = event
+            } else { events.append(event) }
+        case let .titleObserved(window, _):
+            if let index = events.lastIndex(where: {
+                if case let .titleObserved(existing, _) = $0 { existing == window } else { false }
             }) {
                 events[index] = event
             } else { events.append(event) }

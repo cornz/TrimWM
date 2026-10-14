@@ -20,6 +20,20 @@ final class EventQueueTests: XCTestCase {
         XCTAssertEqual(window, b)
     }
 
+    func testCoalescesTitlesPerWindow() {
+        var buffer = EventBuffer()
+        buffer.insert(.titleObserved(a, "one"))
+        buffer.insert(.titleObserved(b, "other"))
+        buffer.insert(.titleObserved(a, "two"))
+        let events = buffer.takeAll()
+        XCTAssertEqual(events.count, 2)
+        guard case let .titleObserved(first, title) = events[0], case .titleObserved(b, _) = events[1] else {
+            return XCTFail("unexpected events")
+        }
+        XCTAssertEqual(first, a)
+        XCTAssertEqual(title, "two")
+    }
+
     func testCoalescesWindowReorders() {
         var buffer = EventBuffer()
         buffer.insert(.windowsReordered)

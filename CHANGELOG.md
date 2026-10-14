@@ -5,6 +5,21 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.0] — 14 October 2026
+
+New features
+
+- Add `layout tabs`, bound to `Option+T` in the default configuration
+  (`bindsym $mod+t layout tabs` in your own): every window of the workspace
+  shares one frame like tabs in a browser, and a tab bar with app icons and
+  window titles switches between them by click, `focus`, and `focus next`;
+  `move` reorders them. The bar is a Liquid Glass island with the window's
+  corner radius. It sits at the top or as an icon rail on the left that
+  expands on hover (`tabs position top|left`), can be resized (`tabs size`),
+  and can hide until the pointer touches its screen edge
+  (`tabs autohide true`).
+- Show each workspace's layout in the menu bar as a glyph instead of a letter.
+
 ## [0.8.1] — 13 October 2026
 
 Bug fixes
