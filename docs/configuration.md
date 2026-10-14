@@ -73,18 +73,19 @@ the window gets the whole screen. Floating windows are not tabs: they stay
 above the active tab, and `floating toggle` turns one into a tab.
 
 ```text
-tabs position top    # or left
-tabs size auto       # bar height at the top, width on the left: 16 to 200
+tabs position top    # or bottom, left, right
+tabs size auto       # bar height at the top or bottom, rail width at the sides: 16 to 200
 tabs autohide false
 ```
 
 The bar is a floating Liquid Glass island with the window's corner radius,
-6 points apart from the window. At the top it is 32 points high, and the
-active tab is a raised capsule with an accent dot. On the left it is a
-44-point rail of app icons with an accent mark on the active tab; it expands
-over the window to show titles while the pointer is on it. `tabs autohide true` gives the window the whole screen; the bar then
-appears over it briefly when the tabs change and while the pointer touches the
-screen edge where the bar sits.
+6 points apart from the window. At the top or bottom it is 32 points high, and
+the active tab is a raised capsule with an accent dot. At the left or right it
+is a 44-point rail of app icons with an accent mark on the active tab; it
+expands over the window to show titles while the pointer is on it, also when
+the pointer is pushed against the screen edge. `tabs autohide true` gives the
+window the whole screen; the bar then appears over it briefly when the tabs
+change and while the pointer touches the screen edge where the bar sits.
 
 ## Focus
 

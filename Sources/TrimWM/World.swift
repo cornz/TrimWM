@@ -287,7 +287,13 @@ struct World: Equatable, Sendable {
                 switch workspace.layout.mode {
                 case .autotile: .autotile
                 case .niri: .niri
-                case .tabs: tabBar.position == .top ? .tabsTop : .tabsLeft
+                case .tabs:
+                    switch tabBar.position {
+                    case .top: .tabsTop
+                    case .bottom: .tabsBottom
+                    case .left: .tabsLeft
+                    case .right: .tabsRight
+                    }
                 }
             }
             return StatusWorkspace(number: number, glyph: glyph, isVisible: number == visibleWorkspace)

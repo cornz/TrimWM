@@ -5,6 +5,18 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.1] — 14 October 2026
+
+New features
+
+- Place the tab bar at the bottom or as a rail at the right too, with
+  `tabs position bottom` or `tabs position right`.
+
+Bug fixes
+
+- Keep an expanded tab rail open while the pointer is pushed against the screen
+  edge it sits at, instead of collapsing it.
+
 ## [0.9.0] — 14 October 2026
 
 New features

@@ -91,6 +91,19 @@ final class TabsLayoutTests: XCTestCase {
         XCTAssertEqual(layout.contentFrame(in: bounds, gaps: LayoutGaps()), CGRect(x: 54, y: 30, width: 946, height: 600))
     }
 
+    func testBottomAndRightBarsTakeRoomFromTheirSide() {
+        var layout = tabs(1, 2)
+        let gaps = LayoutGaps(inner: 0, outer: 10)
+        layout.bar.position = .bottom
+        XCTAssertEqual(layout.bar.thickness, 32)
+        XCTAssertEqual(layout.barFrame(in: bounds, gaps: gaps), CGRect(x: 10, y: 588, width: 980, height: 32))
+        XCTAssertEqual(layout.contentFrame(in: bounds, gaps: gaps), CGRect(x: 10, y: 40, width: 980, height: 542))
+        layout.bar.position = .right
+        XCTAssertEqual(layout.bar.thickness, 44)
+        XCTAssertEqual(layout.barFrame(in: bounds, gaps: gaps), CGRect(x: 946, y: 40, width: 44, height: 580))
+        XCTAssertEqual(layout.contentFrame(in: bounds, gaps: gaps), CGRect(x: 10, y: 40, width: 930, height: 580))
+    }
+
     func testAutohidingBarLeavesTheWholeScreenToTheWindow() {
         var layout = tabs(1, 2)
         layout.bar.autohide = true
@@ -121,6 +134,28 @@ final class TabsLayoutTests: XCTestCase {
         XCTAssertNil(TabBarGeometry.index(at: CGPoint(x: 100, y: 200), in: expanded))
     }
 
+    func testRailsExpandAwayFromTheirScreenEdge() {
+        let left = CGRect(x: 0, y: 0, width: 44, height: 600)
+        XCTAssertEqual(TabBarGeometry.expandedFrame(left, position: .left), CGRect(x: 0, y: 0, width: 240, height: 600))
+        let right = CGRect(x: 956, y: 0, width: 44, height: 600)
+        XCTAssertEqual(TabBarGeometry.expandedFrame(right, position: .right), CGRect(x: 760, y: 0, width: 240, height: 600))
+        let top = CGRect(x: 0, y: 0, width: 1000, height: 32)
+        XCTAssertEqual(TabBarGeometry.expandedFrame(top, position: .top), top)
+        XCTAssertEqual(
+            TabBarGeometry.tabFrames(count: 2, position: .right, size: CGSize(width: 44, height: 600), thickness: 44),
+            TabBarGeometry.tabFrames(count: 2, position: .left, size: CGSize(width: 44, height: 600), thickness: 44)
+        )
+    }
+
+    func testPointerAgainstTheScreenEdgeStaysOnTheBar() {
+        let rail = CGRect(x: 0, y: 0, width: 240, height: 600)
+        XCTAssertTrue(TabBarGeometry.contains(rail, pointer: CGPoint(x: 0, y: 300)))
+        XCTAssertTrue(TabBarGeometry.contains(rail, pointer: CGPoint(x: -0.5, y: 300)))
+        XCTAssertTrue(TabBarGeometry.contains(rail, pointer: CGPoint(x: 240, y: 600)))
+        XCTAssertFalse(TabBarGeometry.contains(rail, pointer: CGPoint(x: 242, y: 300)))
+        XCTAssertFalse(TabBarGeometry.contains(rail, pointer: CGPoint(x: 100, y: 602)))
+    }
+
     func testBarCornersFollowTheWindowUpToACapsule() {
         XCTAssertEqual(TabBarGeometry.cornerRadius(windowRadius: 16, thickness: 32), 16)
         XCTAssertEqual(TabBarGeometry.cornerRadius(windowRadius: 26, thickness: 32), 16)
@@ -137,6 +172,12 @@ final class TabsLayoutTests: XCTestCase {
         let left = CGRect(x: 0, y: 0, width: 44, height: 600)
         XCTAssertTrue(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 1, y: 300), bar: left, position: .left))
         XCTAssertFalse(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 20, y: 300), bar: left, position: .left))
+        let bottom = CGRect(x: 0, y: 0, width: 1000, height: 32)
+        XCTAssertTrue(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 500, y: 0), bar: bottom, position: .bottom))
+        XCTAssertFalse(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 500, y: 10), bar: bottom, position: .bottom))
+        let right = CGRect(x: 956, y: 0, width: 44, height: 600)
+        XCTAssertTrue(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 999, y: 300), bar: right, position: .right))
+        XCTAssertFalse(TabBarGeometry.revealsHiddenBar(pointer: CGPoint(x: 970, y: 300), bar: right, position: .right))
     }
 
     func testStatusGlyphsFollowLayoutTabBarPositionAndFullscreen() {
@@ -156,6 +197,10 @@ final class TabsLayoutTests: XCTestCase {
             StatusWorkspace(number: 4, glyph: .fullscreen, isVisible: false),
         ])
 
+        world.setTabBar(TabBarSettings(position: .bottom))
+        XCTAssertEqual(world.statusWorkspaces.first?.glyph, .tabsBottom)
+        world.setTabBar(TabBarSettings(position: .right))
+        XCTAssertEqual(world.statusWorkspaces.first?.glyph, .tabsRight)
         world.setTabBar(TabBarSettings(position: .left))
         XCTAssertEqual(world.statusWorkspaces.first?.glyph, .tabsLeft)
         guard case let .tabs(layout) = world.visible.layout else { return XCTFail("expected tabs") }

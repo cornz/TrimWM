@@ -24,8 +24,8 @@ strip that scrolls sideways.
 ![TrimWM arranging horizontally scrolling columns](Design/Screenshots/trimwm-niri.png)
 
 **Tabs** (`Option+T`): every window shares one frame like tabs in a browser. A
-Liquid Glass tab bar sits at the top or as an icon rail on the left that
-expands on hover.
+Liquid Glass tab bar sits at the top or bottom, or as an icon rail at the left
+or right that expands on hover.
 
 ![TrimWM's tab bar at the top and on the left, in dark and light appearance](Design/Screenshots/trimwm-tabs.png)
 

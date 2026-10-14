@@ -174,9 +174,11 @@ final class ConfigTests: XCTestCase {
         """)
         XCTAssertEqual(config.tabs, TabBarSettings(position: .left, size: 44, autohide: true))
         XCTAssertNil(try ConfigParser.parse("tabs size 44\ntabs size auto").tabs.size)
+        XCTAssertEqual(try ConfigParser.parse("tabs position bottom").tabs.position, .bottom)
+        XCTAssertEqual(try ConfigParser.parse("tabs position right").tabs.position, .right)
         XCTAssertEqual(try ConfigParser.parseCommand("layout tabs"), .layout(.tabs))
         for source in [
-            "tabs position bottom",
+            "tabs position center",
             "tabs size 8",
             "tabs size huge",
             "tabs autohide maybe",

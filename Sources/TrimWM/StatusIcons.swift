@@ -2,7 +2,7 @@ import AppKit
 
 /// The layout a workspace shows in the menu bar.
 enum StatusGlyph: Equatable, Sendable {
-    case autotile, niri, tabsTop, tabsLeft, fullscreen
+    case autotile, niri, tabsTop, tabsBottom, tabsLeft, tabsRight, fullscreen
 }
 
 struct StatusWorkspace: Equatable, Sendable {
@@ -110,6 +110,18 @@ enum StatusIcons {
         }
 
         switch glyph {
+        case .tabsBottom:
+            // The top glyph upside down.
+            context.translateBy(x: 0, y: glyphSize.height)
+            context.scaleBy(x: 1, y: -1)
+            drawGlyph(.tabsTop, in: CGRect(origin: .zero, size: glyphSize), context: context)
+            return
+        case .tabsRight:
+            // The left glyph mirrored.
+            context.translateBy(x: glyphSize.width, y: 0)
+            context.scaleBy(x: -1, y: 1)
+            drawGlyph(.tabsLeft, in: CGRect(origin: .zero, size: glyphSize), context: context)
+            return
         case .autotile:
             // One window on the left, two stacked on the right.
             outline(frame)
@@ -145,7 +157,7 @@ enum StatusIcons {
         let layout = switch workspace.glyph {
         case .autotile: "tiling"
         case .niri: "scrolling"
-        case .tabsTop, .tabsLeft: "tabs"
+        case .tabsTop, .tabsBottom, .tabsLeft, .tabsRight: "tabs"
         case .fullscreen: "fullscreen"
         }
         return "Workspace \(workspace.number), \(layout)\(workspace.isVisible ? ", visible" : "")"

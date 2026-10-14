@@ -1,24 +1,28 @@
 import CoreGraphics
 
 enum TabBarPosition: String, Equatable, Sendable {
-    case top, left
+    case top, bottom, left, right
+
+    /// A bar across the top or bottom; the others are rails at the sides.
+    var isHorizontal: Bool { self == .top || self == .bottom }
 }
 
 struct TabBarSettings: Equatable, Sendable {
     var position: TabBarPosition = .top
-    /// The bar's height at the top or width on the left; nil uses the default.
+    /// The bar's height at the top or bottom, or width at the sides; nil uses
+    /// the default.
     var size: CGFloat?
     /// Whether the bar only appears over the window on demand instead of
     /// taking room from it.
     var autohide = false
 
-    static let defaultTopSize: CGFloat = 32
-    static let defaultLeftSize: CGFloat = 44
+    static let defaultHorizontalSize: CGFloat = 32
+    static let defaultVerticalSize: CGFloat = 44
     /// The gap between the bar and the window it does not cover.
     static let spacing: CGFloat = 6
 
     var thickness: CGFloat {
-        max(1, size ?? (position == .top ? Self.defaultTopSize : Self.defaultLeftSize))
+        max(1, size ?? (position.isHorizontal ? Self.defaultHorizontalSize : Self.defaultVerticalSize))
     }
 }
 
@@ -67,10 +71,12 @@ struct TabsLayout: Equatable, Sendable {
     func barFrame(in bounds: CGRect, gaps: LayoutGaps) -> CGRect? {
         guard showsBar else { return nil }
         let usable = Self.usable(bounds, gaps: gaps)
-        let thickness = min(bar.thickness, bar.position == .top ? usable.height : usable.width)
+        let thickness = min(bar.thickness, bar.position.isHorizontal ? usable.height : usable.width)
         return switch bar.position {
         case .top: CGRect(x: usable.minX, y: usable.minY, width: usable.width, height: thickness)
+        case .bottom: CGRect(x: usable.minX, y: usable.maxY - thickness, width: usable.width, height: thickness)
         case .left: CGRect(x: usable.minX, y: usable.minY, width: thickness, height: usable.height)
+        case .right: CGRect(x: usable.maxX - thickness, y: usable.minY, width: thickness, height: usable.height)
         }
     }
 
@@ -81,8 +87,12 @@ struct TabsLayout: Equatable, Sendable {
         return switch self.bar.position {
         case .top:
             CGRect(x: usable.minX, y: bar.maxY + spacing, width: usable.width, height: max(1, usable.maxY - bar.maxY - spacing)).integral
+        case .bottom:
+            CGRect(x: usable.minX, y: usable.minY, width: usable.width, height: max(1, bar.minY - spacing - usable.minY)).integral
         case .left:
             CGRect(x: bar.maxX + spacing, y: usable.minY, width: max(1, usable.maxX - bar.maxX - spacing), height: usable.height).integral
+        case .right:
+            CGRect(x: usable.minX, y: usable.minY, width: max(1, bar.minX - spacing - usable.minX), height: usable.height).integral
         }
     }
 

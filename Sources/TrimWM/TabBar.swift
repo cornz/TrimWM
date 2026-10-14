@@ -1,7 +1,7 @@
 import AppKit
 
 enum TabBarGeometry {
-    static let expandedLeftWidth: CGFloat = 240
+    static let expandedRailWidth: CGFloat = 240
     static let maximumTopTabWidth: CGFloat = 220
     static let inset: CGFloat = 4
     static let leftInset: CGFloat = 6
@@ -10,13 +10,13 @@ enum TabBarGeometry {
     /// How close to the bar's outer edge the pointer reveals a hidden bar.
     static let revealDistance: CGFloat = 2
 
-    /// The tabs' frames in a flipped view of the given size. On the left, the
-    /// tabs are squares as wide as the collapsed rail allows, and rows of the
-    /// same height when it is expanded.
+    /// The tabs' frames in a flipped view of the given size. In a side rail,
+    /// the tabs are squares as wide as the collapsed rail allows, and rows of
+    /// the same height when it is expanded.
     static func tabFrames(count: Int, position: TabBarPosition, size: CGSize, thickness: CGFloat) -> [CGRect] {
         guard count > 0 else { return [] }
-        switch position {
-        case .top:
+        switch position.isHorizontal {
+        case true:
             let spacing: CGFloat = 2
             let available = max(0, size.width - inset * 2 - spacing * CGFloat(count - 1))
             let width = floor(min(maximumTopTabWidth, available / CGFloat(count)))
@@ -25,7 +25,7 @@ enum TabBarGeometry {
             return (0..<count).map {
                 CGRect(x: inset + CGFloat($0) * (width + spacing), y: top, width: width, height: height)
             }
-        case .left:
+        case false:
             let spacing: CGFloat = 6
             let side = max(12, thickness - leftInset * 2)
             return (0..<count).map {
@@ -43,14 +43,33 @@ enum TabBarGeometry {
         min(windowRadius ?? 16, thickness / 2)
     }
 
+    /// A rail expanded on hover grows away from the screen edge it sits at.
+    static func expandedFrame(_ bar: CGRect, position: TabBarPosition) -> CGRect {
+        guard !position.isHorizontal, bar.width < expandedRailWidth else { return bar }
+        var frame = bar
+        frame.size.width = expandedRailWidth
+        if position == .right { frame.origin.x = bar.maxX - expandedRailWidth }
+        return frame
+    }
+
+    /// Whether the pointer is on the bar, edges included: a pointer pushed
+    /// against the screen edge the bar sits at is still on it.
+    static func contains(_ frame: CGRect, pointer: CGPoint) -> Bool {
+        pointer.x >= frame.minX - 1 && pointer.x <= frame.maxX + 1
+            && pointer.y >= frame.minY - 1 && pointer.y <= frame.maxY + 1
+    }
+
     /// Whether the pointer, in AppKit coordinates, touches the outer edge of a
-    /// bar whose AppKit frame is given.
+    /// bar whose AppKit frame is given. AppKit's y grows upwards, so the top
+    /// bar's outer edge is its maximum y.
     static func revealsHiddenBar(pointer: CGPoint, bar: CGRect, position: TabBarPosition) -> Bool {
-        switch position {
-        case .top:
-            pointer.x >= bar.minX && pointer.x <= bar.maxX && pointer.y >= bar.maxY - revealDistance && pointer.y <= bar.maxY + 1
-        case .left:
-            pointer.y >= bar.minY && pointer.y <= bar.maxY && pointer.x >= bar.minX - 1 && pointer.x <= bar.minX + revealDistance
+        let alongX = pointer.x >= bar.minX && pointer.x <= bar.maxX
+        let alongY = pointer.y >= bar.minY && pointer.y <= bar.maxY
+        return switch position {
+        case .top: alongX && pointer.y >= bar.maxY - revealDistance && pointer.y <= bar.maxY + 1
+        case .bottom: alongX && pointer.y >= bar.minY - 1 && pointer.y <= bar.minY + revealDistance
+        case .left: alongY && pointer.x >= bar.minX - 1 && pointer.x <= bar.minX + revealDistance
+        case .right: alongY && pointer.x >= bar.maxX - revealDistance && pointer.x <= bar.maxX + 1
         }
     }
 }
@@ -68,8 +87,10 @@ final class TabBar {
     private var model: TabBarModel?
     private var barFrame: CGRect?
     private var revealed = false
+    private var hovering = false
     private var hideWork: DispatchWorkItem?
     private var pointerMonitor: Any?
+    private var hoverMonitors: [Any] = []
 
     init() {
         panel = NSPanel(
@@ -85,6 +106,9 @@ final class TabBar {
         panel.isReleasedWhenClosed = false
         panel.becomesKeyOnlyIfNeeded = true
         panel.acceptsMouseMovedEvents = true
+        // Set explicitly, a transparent window takes the mouse on all of its
+        // area instead of letting it through where the glass is see-through.
+        panel.ignoresMouseEvents = false
         panel.level = .floating
         panel.collectionBehavior = [.ignoresCycle, .fullScreenNone]
         view = TabBarView(frame: .zero)
@@ -101,6 +125,7 @@ final class TabBar {
         guard let model, let screen = NSScreen.screens.first(where: { $0.frame.origin == .zero }) ?? NSScreen.main else {
             barFrame = nil
             stopWatchingPointer()
+            setHovering(false)
             panel.orderOut(nil)
             return
         }
@@ -132,11 +157,10 @@ final class TabBar {
     private func layout() {
         guard let model, let barFrame else { return }
         let shown = !model.settings.autohide || revealed
-        // A hidden left bar shows expanded: there is no collapsed rail to hover.
-        let expanded = model.settings.position == .left && (view.isHovered || (model.settings.autohide && shown))
+        // A hidden rail shows expanded: there is no collapsed rail to hover.
+        let expanded = !model.settings.position.isHorizontal && (hovering || (model.settings.autohide && shown))
         view.isExpanded = expanded
-        var frame = barFrame
-        if expanded { frame.size.width = max(frame.width, TabBarGeometry.expandedLeftWidth) }
+        let frame = expanded ? TabBarGeometry.expandedFrame(barFrame, position: model.settings.position) : barFrame
         guard shown else {
             panel.orderOut(nil)
             return
@@ -149,16 +173,36 @@ final class TabBar {
         if !panel.isVisible { panel.orderFrontRegardless() }
     }
 
+    /// The view's tracking area reports entering; leaving is decided by where
+    /// the pointer is, because the tracking area also reports leaving when
+    /// the pointer is pushed against the screen edge the bar sits at.
     private func hover(_ inside: Bool) {
+        if inside { setHovering(true) } else { checkPointer() }
+    }
+
+    private func checkPointer() {
+        guard hovering, !TabBarGeometry.contains(panel.frame, pointer: NSEvent.mouseLocation) else { return }
+        setHovering(false)
+    }
+
+    private func setHovering(_ value: Bool) {
+        guard value != hovering else { return }
+        hovering = value
         hideWork?.cancel()
-        if inside {
+        if value {
             revealed = true
-            layout()
-        } else if model?.settings.autohide == true {
-            scheduleHide(after: TabBarGeometry.hideDelay)
+            let check: (NSEvent) -> Void = { [weak self] _ in MainActor.assumeIsolated { self?.checkPointer() } }
+            let events: NSEvent.EventTypeMask = [.mouseMoved, .leftMouseDragged]
+            if let global = NSEvent.addGlobalMonitorForEvents(matching: events, handler: check) { hoverMonitors.append(global) }
+            if let local = NSEvent.addLocalMonitorForEvents(matching: events, handler: { check($0); return $0 }) {
+                hoverMonitors.append(local)
+            }
         } else {
-            layout()
+            for monitor in hoverMonitors { NSEvent.removeMonitor(monitor) }
+            hoverMonitors.removeAll()
+            if model?.settings.autohide == true { scheduleHide(after: TabBarGeometry.hideDelay) }
         }
+        layout()
     }
 
     private func reveal(for duration: TimeInterval) {
@@ -171,7 +215,7 @@ final class TabBar {
         hideWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
             MainActor.assumeIsolated {
-                guard let self, self.model?.settings.autohide == true, !self.view.isHovered else { return }
+                guard let self, self.model?.settings.autohide == true, !self.hovering else { return }
                 self.revealed = false
                 self.layout()
             }
@@ -214,7 +258,6 @@ final class TabBarView: NSView {
     var onHover: ((Bool) -> Void)?
     var model: TabBarModel? { didSet { if model != oldValue { needsDisplay = true } } }
     var isExpanded = false { didSet { if isExpanded != oldValue { needsDisplay = true } } }
-    private(set) var isHovered = false
     private var hoveredIndex: Int? { didSet { if hoveredIndex != oldValue { needsDisplay = true } } }
     private var icons: [pid_t: NSImage] = [:]
     private var names: [pid_t: String] = [:]
@@ -233,12 +276,10 @@ final class TabBarView: NSView {
     }
 
     override func mouseEntered(with event: NSEvent) {
-        isHovered = true
         onHover?(true)
     }
 
     override func mouseExited(with event: NSEvent) {
-        isHovered = false
         hoveredIndex = nil
         onHover?(false)
     }
@@ -268,14 +309,15 @@ final class TabBarView: NSView {
         guard let model else { return }
         let accent = Self.color(model.border.color)
         for (index, (tab, frame)) in zip(model.tabs, tabFrames).enumerated() {
-            switch model.settings.position {
-            case .top: drawTopTab(tab, in: frame, hovered: index == hoveredIndex, accent: accent)
-            case .left: drawLeftTab(tab, in: frame, hovered: index == hoveredIndex, accent: accent)
+            if model.settings.position.isHorizontal {
+                drawBarTab(tab, in: frame, hovered: index == hoveredIndex, accent: accent)
+            } else {
+                drawRailTab(tab, in: frame, hovered: index == hoveredIndex, accent: accent, onRight: model.settings.position == .right)
             }
         }
     }
 
-    private func drawTopTab(_ tab: TabBarTab, in frame: CGRect, hovered: Bool, accent: NSColor) {
+    private func drawBarTab(_ tab: TabBarTab, in frame: CGRect, hovered: Bool, accent: NSColor) {
         let radius = frame.height / 2
         drawBackground(of: tab, in: frame, radius: radius, hovered: hovered)
         let iconSide = min(16, frame.height - 6)
@@ -290,11 +332,12 @@ final class TabBarView: NSView {
         drawTitle(of: tab, in: CGRect(x: icon.maxX + 6, y: frame.minY, width: max(0, titleEnd - icon.maxX - 6), height: frame.height))
     }
 
-    private func drawLeftTab(_ tab: TabBarTab, in frame: CGRect, hovered: Bool, accent: NSColor) {
+    /// The accent mark sits at the screen edge the rail is on.
+    private func drawRailTab(_ tab: TabBarTab, in frame: CGRect, hovered: Bool, accent: NSColor, onRight: Bool) {
         drawBackground(of: tab, in: frame, radius: min(10, frame.height / 3), hovered: hovered)
         if tab.isActive {
             accent.setFill()
-            let mark = CGRect(x: 1.5, y: frame.midY - 7, width: 3, height: 14)
+            let mark = CGRect(x: onRight ? bounds.maxX - 4.5 : 1.5, y: frame.midY - 7, width: 3, height: 14)
             NSBezierPath(roundedRect: mark, xRadius: 1.5, yRadius: 1.5).fill()
         }
         let iconSide = min(20, frame.height - 10)

@@ -154,7 +154,7 @@ enum ConfigParser {
                 switch fields[1] {
                 case "position":
                     guard let value = TabBarPosition(rawValue: fields[2]) else {
-                        throw ConfigError.line(number, "tabs position must be top or left")
+                        throw ConfigError.line(number, "tabs position must be top, bottom, left, or right")
                     }
                     config.tabs.position = value
                 case "size":
