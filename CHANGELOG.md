@@ -5,6 +5,19 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.3] — 17 October 2026
+
+Bug fixes
+
+- Return a BSP window that vanished for a moment, for example while its app
+  was hidden, to its old place instead of splitting the focused window. When
+  all windows of a workspace vanished at once, as on another Space, they come
+  back in their old layout in whatever order they reappear. The first window of an app that relaunched within 30 seconds,
+  as after an update, takes the place of its old one. Before, two columns above
+  a full-width line could turn into a line above two columns.
+- Focus the window that grows into the space of a closed BSP window, instead of
+  the last window of the workspace.
+
 ## [0.9.2] — 14 October 2026
 
 Improvements

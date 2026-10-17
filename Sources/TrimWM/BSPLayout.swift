@@ -36,6 +36,50 @@ indirect enum BSPNode: Equatable, Sendable {
         }
     }
 
+    /// The tree without every window outside `kept`, as removing them would leave it.
+    func keeping(_ kept: Set<WindowToken>) -> BSPNode? {
+        switch self {
+        case let .leaf(window): kept.contains(window) ? self : nil
+        case let .split(axis, ratio, first, second):
+            switch (first.keeping(kept), second.keeping(kept)) {
+            case (nil, nil): nil
+            case let (remaining?, nil), let (nil, remaining?): remaining
+            case let (left?, right?): .split(axis: axis, ratio: ratio, first: left, second: right)
+            }
+        }
+    }
+
+    /// The split that holds `window` as a direct child, seen from the window.
+    func vacancy(of window: WindowToken) -> BSPVacancy? {
+        guard case let .split(axis, ratio, first, second) = self else { return nil }
+        if first == .leaf(window) {
+            return BSPVacancy(window: window, sibling: Set(second.windows), axis: axis, ratio: ratio, isFirst: true)
+        }
+        if second == .leaf(window) {
+            return BSPVacancy(window: window, sibling: Set(first.windows), axis: axis, ratio: ratio, isFirst: false)
+        }
+        return first.vacancy(of: window) ?? second.vacancy(of: window)
+    }
+
+    /// Splits the smallest node holding every `anchor` back around `window`.
+    func placing(_ window: WindowToken, beside anchors: Set<WindowToken>, as vacancy: BSPVacancy) -> BSPNode {
+        if case let .split(axis, ratio, first, second) = self {
+            if anchors.isSubset(of: first.windows) {
+                return .split(axis: axis, ratio: ratio, first: first.placing(window, beside: anchors, as: vacancy), second: second)
+            }
+            if anchors.isSubset(of: second.windows) {
+                return .split(axis: axis, ratio: ratio, first: first, second: second.placing(window, beside: anchors, as: vacancy))
+            }
+        }
+        let leaf = BSPNode.leaf(window)
+        return .split(
+            axis: vacancy.axis,
+            ratio: vacancy.ratio,
+            first: vacancy.isFirst ? leaf : self,
+            second: vacancy.isFirst ? self : leaf
+        )
+    }
+
     func swapping(_ firstWindow: WindowToken, _ secondWindow: WindowToken) -> BSPNode {
         switch self {
         case let .leaf(window):
@@ -177,16 +221,62 @@ indirect enum BSPNode: Equatable, Sendable {
     }
 }
 
+/// Where a removed window sat: beside `sibling`, on one side of a split.
+struct BSPVacancy: Equatable, Sendable {
+    let window: WindowToken
+    let sibling: Set<WindowToken>
+    let axis: SplitAxis
+    let ratio: CGFloat
+    let isFirst: Bool
+}
+
 struct BSPLayout: Equatable, Sendable {
     private(set) var root: BSPNode?
     private(set) var focused: WindowToken?
     var nextSplit: SplitAxis?
+    /// The tree before windows vanished from it. While the remaining windows
+    /// still sit as in it, any of them that come back, in any order, return
+    /// to exactly where they were.
+    private(set) var remembered: BSPNode?
+    /// Recently removed windows, newest last, so one that comes back after
+    /// the tree changed still returns beside its old neighbours.
+    private(set) var vacancies: [BSPVacancy] = []
+    static let vacancyLimit = 32
 
     var windows: [WindowToken] { root?.windows ?? [] }
 
-    mutating func insert(_ window: WindowToken, in bounds: CGRect, gaps: LayoutGaps, splitRatio: CGFloat) {
+    /// Inserts `window`, back into the place of the first of `restoring`
+    /// that left one, or else by splitting the focused window.
+    mutating func insert(
+        _ window: WindowToken,
+        in bounds: CGRect,
+        gaps: LayoutGaps,
+        splitRatio: CGFloat,
+        restoring: [WindowToken] = []
+    ) {
+        let present = Set(windows)
+        for previous in restoring where !present.contains(previous) {
+            guard var memory = remembered, memory.windows.contains(previous) else { continue }
+            if previous != window { memory = memory.replacing(previous, with: .leaf(window)) }
+            guard memory.keeping(present) == root else { break }
+            self.root = memory.keeping(present.union([window]))
+            remembered = memory
+            focused = window
+            vacancies.removeAll { $0.window == previous }
+            return
+        }
         guard let root else {
             self.root = .leaf(window)
+            focused = window
+            vacancies.removeAll { restoring.contains($0.window) }
+            return
+        }
+        for previous in restoring {
+            guard let index = vacancies.lastIndex(where: { $0.window == previous }) else { continue }
+            let vacancy = vacancies.remove(at: index)
+            let anchors = vacancy.sibling.intersection(root.windows)
+            guard !anchors.isEmpty else { continue }
+            self.root = root.placing(window, beside: anchors, as: vacancy)
             focused = window
             return
         }
@@ -200,8 +290,20 @@ struct BSPLayout: Equatable, Sendable {
     }
 
     mutating func remove(_ window: WindowToken) {
+        if let root, root.windows.contains(window), remembered?.keeping(Set(root.windows)) != root {
+            remembered = root
+        }
+        let vacancy = root?.vacancy(of: window)
         root = root?.removing(window)
-        if focused == window { focused = root?.windows.last }
+        vacancies.removeAll { $0.window == window }
+        if let vacancy {
+            vacancies.append(vacancy)
+            if vacancies.count > Self.vacancyLimit { vacancies.removeFirst() }
+        }
+        guard focused == window else { return }
+        // Focus the window that grows into the freed space, next to it.
+        let neighbours = root?.windows.filter(vacancy?.sibling.contains ?? { _ in false }) ?? []
+        focused = (vacancy?.isFirst == true ? neighbours.first : neighbours.last) ?? root?.windows.last
     }
 
     mutating func focus(_ window: WindowToken) {

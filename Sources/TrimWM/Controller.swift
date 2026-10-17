@@ -117,6 +117,7 @@ struct ControllerEnvironment {
     var terminate: () -> Void
     var watchConfig: (URL, @escaping @MainActor () -> Void) -> AnyObject? = { _, _ in nil }
     var after: (TimeInterval, @escaping @MainActor () -> Void) -> Void = { _, work in work() }
+    var now: () -> Date = Date.init
 
     static var live: ControllerEnvironment {
         ControllerEnvironment(
@@ -170,6 +171,10 @@ final class WMController {
     private var config: WMConfig
     private(set) var world = World()
     private var native: [WindowToken: AXWindowSnapshot] = [:]
+    /// Managed windows that vanished, so a relaunched app's new window can
+    /// take the place of its old one.
+    private var departed: [(token: WindowToken, bundleID: String, time: Date)] = []
+    static let departedLifetime: TimeInterval = 30
     private var frameConstraints = FrameConstraintCache()
     private var appMinimumSizes: AppMinimumSizes
     private var ledger = FrameLedger()
@@ -432,7 +437,12 @@ final class WMController {
         let removedFocusedWindow = focusedBeforeRemoval.map {
             previous.contains($0) && !incoming.contains($0)
         } ?? false
+        let now = environment.now()
+        departed.removeAll { now.timeIntervalSince($0.time) > Self.departedLifetime }
         for token in previous where !incoming.contains(token) {
+            if let bundleID = native[token]?.bundleID, world.workspace(of: token) != nil {
+                departed.append((token, bundleID, now))
+            }
             native.removeValue(forKey: token)
             frameConstraints.remove(token)
             world.remove(token)
@@ -458,7 +468,7 @@ final class WMController {
                 let floating = window.disposition == .floating || rule?.floating == true
                 world.add(window.token, to: workspace, floating: floating ? window.frame : nil,
                           bounds: bounds, gaps: config.gaps, splitRatio: config.splitRatio,
-                          minimumSizes: minimumSizes)
+                          minimumSizes: minimumSizes, restoring: restoreCandidates(for: window))
             }
             acceptFloatingFrame(window)
             ledger.observed(window.frame, for: window.token)
@@ -484,6 +494,13 @@ final class WMController {
         if removedFocusedWindow, let replacement = world.visible.focused {
             windowSystem.focus(replacement)
         }
+    }
+
+    /// The window itself, then the oldest vanished window of its app.
+    private func restoreCandidates(for window: AXWindowSnapshot) -> [WindowToken] {
+        departed.removeAll { $0.token == window.token }
+        guard let index = departed.firstIndex(where: { $0.bundleID == window.bundleID }) else { return [window.token] }
+        return [window.token, departed.remove(at: index).token]
     }
 
     private func acceptFloatingFrame(_ window: AXWindowSnapshot) {

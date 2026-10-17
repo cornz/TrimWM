@@ -54,6 +54,102 @@ final class BSPLayoutTests: XCTestCase {
         XCTAssertEqual(layout.focused, token(1))
     }
 
+    func testVanishedWindowReturnsToItsPlaceInsteadOfSplittingFocus() {
+        var layout = twoColumnsAboveALine()
+        layout.focus(token(1))
+        layout.remove(token(1))
+        XCTAssertEqual(layout.root, .split(axis: .vertical, ratio: 0.5, first: .leaf(token(2)), second: .leaf(token(3))))
+        XCTAssertEqual(layout.focused, token(2))
+
+        layout.focus(token(3))
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1, restoring: [token(1)])
+
+        XCTAssertEqual(layout.root, twoColumnsAboveALine().root)
+        XCTAssertEqual(layout.focused, token(1))
+        XCTAssertTrue(layout.vacancies.isEmpty)
+    }
+
+    func testRelaunchedWindowTakesThePlaceOfTheWindowItReplaces() {
+        var layout = twoColumnsAboveALine()
+        layout.remove(token(2))
+        layout.focus(token(3))
+        layout.insert(token(4), in: wide, gaps: gaps, splitRatio: 1, restoring: [token(4), token(2)])
+
+        XCTAssertEqual(layout.root, .split(
+            axis: .vertical,
+            ratio: 0.5,
+            first: .split(axis: .horizontal, ratio: 0.5, first: .leaf(token(1)), second: .leaf(token(4))),
+            second: .leaf(token(3))
+        ))
+    }
+
+    func testReturningWindowSplitsTheWholeSubtreeThatGrewIntoItsPlace() {
+        var layout = twoColumnsAboveALine()
+        layout.resize(axis: .vertical, delta: 0.2)
+        layout.remove(token(3))
+        layout.focus(token(1))
+        layout.insert(token(4), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1, restoring: [token(3)])
+
+        guard case let .split(axis, ratio, first, second)? = layout.root else { return XCTFail("missing root") }
+        XCTAssertEqual(axis, .vertical)
+        XCTAssertEqual(ratio, 0.7, accuracy: 0.0001)
+        XCTAssertEqual(Set(first.windows), [token(1), token(2), token(4)])
+        XCTAssertEqual(second, .leaf(token(3)))
+    }
+
+    func testWindowsThatAllVanishedReturnInAnyOrderToTheirPlaces() {
+        let original = twoColumnsAboveALine()
+        let orders: [[CGWindowID]] = [[1, 2, 3], [1, 3, 2], [2, 1, 3], [2, 3, 1], [3, 1, 2], [3, 2, 1]]
+        for removal in orders {
+            for addition in orders {
+                var layout = original
+                for id in removal { layout.remove(token(id)) }
+                XCTAssertNil(layout.root)
+                for id in addition {
+                    layout.insert(token(id), in: wide, gaps: gaps, splitRatio: 1, restoring: [token(id)])
+                }
+                XCTAssertEqual(layout.root, original.root, "removed \(removal), added \(addition)")
+            }
+        }
+    }
+
+    func testWindowWithoutAPlaceLeftSplitsFocusedWindow() {
+        var layout = twoColumnsAboveALine()
+        layout.remove(token(1))
+        layout.remove(token(2))
+        layout.insert(token(4), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1, restoring: [token(1)])
+
+        XCTAssertEqual(layout.root, .split(
+            axis: .horizontal,
+            ratio: 0.5,
+            first: .leaf(token(3)),
+            second: .split(axis: .vertical, ratio: 0.5, first: .leaf(token(4)), second: .leaf(token(1)))
+        ))
+    }
+
+    func testVacanciesAreBounded() {
+        var layout = BSPLayout()
+        for id in 1...CGWindowID(BSPLayout.vacancyLimit + 10) {
+            layout.insert(token(id), in: wide, gaps: gaps, splitRatio: 1)
+        }
+        for id in 2...CGWindowID(BSPLayout.vacancyLimit + 10) { layout.remove(token(id)) }
+        XCTAssertEqual(layout.vacancies.count, BSPLayout.vacancyLimit)
+        XCTAssertEqual(layout.vacancies.last?.window, token(CGWindowID(BSPLayout.vacancyLimit + 10)))
+    }
+
+    /// `V(H(1, 2), 3)`: two columns above a full-width line.
+    private func twoColumnsAboveALine() -> BSPLayout {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.nextSplit = .vertical
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1)
+        layout.focus(token(1))
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        return layout
+    }
+
     func testResizePersistsAndBalanceResetsRatio() {
         var layout = BSPLayout()
         layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1.1)

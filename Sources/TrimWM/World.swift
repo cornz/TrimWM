@@ -30,11 +30,12 @@ enum WorkspaceLayout: Equatable, Sendable {
         bounds: CGRect,
         gaps: LayoutGaps,
         splitRatio: CGFloat,
-        minimumSizes: [WindowToken: CGSize] = [:]
+        minimumSizes: [WindowToken: CGSize] = [:],
+        restoring: [WindowToken] = []
     ) {
         switch self {
         case var .autotile(layout):
-            layout.insert(window, in: bounds, gaps: gaps, splitRatio: splitRatio)
+            layout.insert(window, in: bounds, gaps: gaps, splitRatio: splitRatio, restoring: restoring)
             self = .autotile(layout)
         case var .niri(layout):
             layout.insert(window)
@@ -112,10 +113,20 @@ struct WorkspaceState: Equatable, Sendable {
         bounds: CGRect,
         gaps: LayoutGaps,
         splitRatio: CGFloat,
-        minimumSizes: [WindowToken: CGSize] = [:]
+        minimumSizes: [WindowToken: CGSize] = [:],
+        restoring: [WindowToken] = []
     ) {
         if let frame { floating[window] = frame }
-        else { layout.insert(window, bounds: bounds, gaps: gaps, splitRatio: splitRatio, minimumSizes: minimumSizes) }
+        else {
+            layout.insert(
+                window,
+                bounds: bounds,
+                gaps: gaps,
+                splitRatio: splitRatio,
+                minimumSizes: minimumSizes,
+                restoring: restoring
+            )
+        }
         focused = window
     }
 
@@ -323,7 +334,8 @@ struct World: Equatable, Sendable {
         bounds: CGRect,
         gaps: LayoutGaps,
         splitRatio: CGFloat,
-        minimumSizes: [WindowToken: CGSize] = [:]
+        minimumSizes: [WindowToken: CGSize] = [:],
+        restoring: [WindowToken] = []
     ) {
         guard workspaces.indices.contains(workspace - 1), self.workspace(of: window) == nil else { return }
         workspaces[workspace - 1].add(
@@ -332,7 +344,8 @@ struct World: Equatable, Sendable {
             bounds: bounds,
             gaps: gaps,
             splitRatio: splitRatio,
-            minimumSizes: minimumSizes
+            minimumSizes: minimumSizes,
+            restoring: restoring
         )
     }
 

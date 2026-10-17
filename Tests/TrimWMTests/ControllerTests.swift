@@ -212,6 +212,42 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.mouse.updates.last?.frames[codex]?.width, bounds.width)
     }
 
+    func testRelaunchedAppWindowReturnsToThePlaceOfItsOldWindow() {
+        let harness = makeHarness()
+        let slack = WindowToken(pid: 40, id: 1)
+        let relaunched = WindowToken(pid: 50, id: 7)
+        let messages = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = messages.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, bundleID: "com.example.slack")])])
+        harness.controller.handle([.windows(messages.pid, [snapshot(messages, x: 500, focused: true)])])
+
+        harness.controller.handle([.windows(slack.pid, [])])
+        harness.environment.now += WMController.departedLifetime
+        harness.controller.handle([.windows(relaunched.pid, [snapshot(relaunched, x: 0, bundleID: "com.example.slack")])])
+
+        XCTAssertEqual(harness.mouse.updates.last?.frames[relaunched]?.minX, 0)
+        XCTAssertEqual(harness.mouse.updates.last?.frames[messages]?.minX, 500)
+    }
+
+    func testWindowOfAnAppThatLeftLongAgoSplitsFocusedWindow() {
+        let harness = makeHarness()
+        let slack = WindowToken(pid: 40, id: 1)
+        let relaunched = WindowToken(pid: 50, id: 7)
+        let messages = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = messages.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, bundleID: "com.example.slack")])])
+        harness.controller.handle([.windows(messages.pid, [snapshot(messages, x: 500, focused: true)])])
+
+        harness.controller.handle([.windows(slack.pid, [])])
+        harness.environment.now += WMController.departedLifetime + 1
+        harness.controller.handle([.windows(relaunched.pid, [snapshot(relaunched, x: 0, bundleID: "com.example.slack")])])
+
+        XCTAssertEqual(harness.mouse.updates.last?.frames[messages]?.minX, 0)
+        XCTAssertEqual(harness.mouse.updates.last?.frames[relaunched]?.minX, 500)
+    }
+
     func testFloatingWindowKeepsManualMovesAndResizesAndUpdatesFocusBorder() {
         let harness = makeHarness()
         let token = WindowToken(pid: 40, id: 1)
@@ -657,7 +693,7 @@ final class ControllerTests: XCTestCase {
         harness.controller.handle([.windows(41, [])])
         settleWrites(harness)
         let next = WindowToken(pid: 42, id: 3)
-        harness.controller.handle([.windows(42, [snapshot(next, x: 500)])])
+        harness.controller.handle([.windows(42, [snapshot(next, x: 500, bundleID: "com.example.next")])])
         settleWrites(harness)
 
         XCTAssertEqual(harness.windowSystem.writes.last { $0.0 == next }?.1, CGRect(x: 500, y: 0, width: 500, height: 600))
@@ -974,6 +1010,7 @@ private final class TestControllerEnvironment {
     var shellError: Error?
     var configChanged: (@MainActor () -> Void)?
     var delays: [TimeInterval] = []
+    var now = Date(timeIntervalSinceReferenceDate: 0)
     private var delayed: [@MainActor () -> Void] = []
     let bounds: CGRect
 
@@ -1003,7 +1040,8 @@ private final class TestControllerEnvironment {
             after: { delay, work in
                 self.delays.append(delay)
                 self.delayed.append(work)
-            }
+            },
+            now: { self.now }
         )
     }
 
