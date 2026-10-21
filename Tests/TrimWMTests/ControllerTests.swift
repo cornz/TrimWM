@@ -21,8 +21,12 @@ final class ControllerTests: XCTestCase {
         )
         XCTAssertEqual(AppMetadata.version([:]), "development")
         XCTAssertEqual(
-            AppMetadata.menuTitle(status: "[1T]", error: nil, version: "0.3.1"),
-            "TrimWM 0.3.1 · [1T]"
+            AppMetadata.menuTitle(status: nil, error: nil, version: "0.3.1"),
+            "TrimWM 0.3.1"
+        )
+        XCTAssertEqual(
+            AppMetadata.menuTitle(status: "Paused", error: nil, version: "0.3.1"),
+            "TrimWM 0.3.1 · Paused"
         )
         XCTAssertEqual(
             AppMetadata.menuTitle(status: "Paused", error: "Configuration failed", version: "0.3.1"),

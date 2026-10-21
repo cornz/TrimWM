@@ -245,8 +245,11 @@ enum AppMetadata {
         info?["CFBundleShortVersionString"] as? String ?? "development"
     }
 
-    static func menuTitle(status: String, error: String?, version: String) -> String {
-        "TrimWM \(version) · \(error ?? status)"
+    /// The menu bar already shows the workspaces, so only an error or a
+    /// paused or starting status follows the version.
+    static func menuTitle(status: String?, error: String?, version: String) -> String {
+        guard let detail = error ?? status else { return "TrimWM \(version)" }
+        return "TrimWM \(version) · \(detail)"
     }
 
     static let changelogURL = URL(string: "https://github.com/cornz/TrimWM/blob/main/CHANGELOG.md")!
@@ -311,7 +314,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem?.button?.toolTip = "TrimWM \(version)"
         let menu = NSMenu()
         let state = NSMenuItem(
-            title: AppMetadata.menuTitle(status: status, error: error, version: version),
+            title: AppMetadata.menuTitle(status: workspaces.isEmpty ? status : nil, error: error, version: version),
             action: nil,
             keyEquivalent: ""
         )

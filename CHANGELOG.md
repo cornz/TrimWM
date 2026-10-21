@@ -5,6 +5,13 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.4] — 21 October 2026
+
+Changes
+
+- Leave the workspace list out of the first line of the status menu: the
+  menu bar already shows the workspaces with their layout glyphs.
+
 ## [0.9.3] — 17 October 2026
 
 Bug fixes

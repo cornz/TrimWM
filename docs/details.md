@@ -72,7 +72,8 @@ exist. See [Configuration](configuration.md).
 The menu-bar item changes from `Paused` to the workspaces when enabled. Every
 occupied workspace is listed with its number and a glyph for its layout: BSP
 tiling, Niri columns, tabs at the top or on the left, or WM-fullscreen. The
-active workspace is highlighted.
+active workspace is highlighted. The first line of the menu shows the version
+and, when there is one, an error or the paused status.
 
 ![TrimWM's menu-bar glyphs for each layout](../Design/Screenshots/trimwm-status.png)
 
