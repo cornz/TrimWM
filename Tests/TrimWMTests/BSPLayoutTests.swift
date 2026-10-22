@@ -335,6 +335,40 @@ final class BSPLayoutTests: XCTestCase {
         ))
     }
 
+    func testReflowedTreeReturnsOnceItsWindowsFitAgain() {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        let sideBySide = layout.root
+        // Like a late applied resize: an old width is taken for a minimum.
+        let mistaken = [token(1): CGSize(width: 700, height: 1), token(2): CGSize(width: 400, height: 1)]
+
+        XCTAssertTrue(layout.reflowToFit(in: wide, gaps: gaps, minimumSizes: mistaken))
+        XCTAssertNotEqual(layout.root, sideBySide)
+        XCTAssertFalse(layout.reflowToFit(in: wide, gaps: gaps, minimumSizes: mistaken))
+
+        XCTAssertTrue(layout.reflowToFit(in: wide, gaps: gaps, minimumSizes: [token(2): CGSize(width: 400, height: 1)]))
+        XCTAssertEqual(layout.root, sideBySide)
+        XCTAssertNil(layout.reflowed)
+    }
+
+    func testReflowedTreeStaysOnceItChanged() {
+        var layout = BSPLayout()
+        layout.insert(token(1), in: wide, gaps: gaps, splitRatio: 1)
+        layout.insert(token(2), in: wide, gaps: gaps, splitRatio: 1)
+        XCTAssertTrue(layout.reflowToFit(
+            in: wide,
+            gaps: gaps,
+            minimumSizes: [token(1): CGSize(width: 700, height: 1), token(2): CGSize(width: 400, height: 1)]
+        ))
+        layout.insert(token(3), in: wide, gaps: gaps, splitRatio: 1)
+        let changed = layout.root
+
+        XCTAssertFalse(layout.reflowToFit(in: wide, gaps: gaps, minimumSizes: [:]))
+        XCTAssertEqual(layout.root, changed)
+        XCTAssertNil(layout.reflowed)
+    }
+
     func testReflowReturnsFalseWhenNoArrangementCanMeetMinimums() {
         let bounds = CGRect(x: 0, y: 0, width: 500, height: 500)
         var layout = BSPLayout()

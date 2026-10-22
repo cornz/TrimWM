@@ -5,6 +5,15 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.5] — 22 October 2026
+
+Bug fixes
+
+- Return BSP windows to their old layout once they fit side by side again.
+  When an app applied a resize late, TrimWM briefly took its old size for its
+  minimum and stacked the windows to fit it, and they stayed stacked after the
+  minimum was forgotten, until TrimWM restarted.
+
 ## [0.9.4] — 21 October 2026
 
 Changes

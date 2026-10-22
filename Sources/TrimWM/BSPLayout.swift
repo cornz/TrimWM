@@ -221,6 +221,13 @@ indirect enum BSPNode: Equatable, Sendable {
     }
 }
 
+/// A tree `reflowToFit` replaced because its windows did not fit, and the
+/// tree it put in its place.
+struct BSPReflow: Equatable, Sendable {
+    let original: BSPNode
+    let fitted: BSPNode
+}
+
 /// Where a removed window sat: beside `sibling`, on one side of a split.
 struct BSPVacancy: Equatable, Sendable {
     let window: WindowToken
@@ -242,6 +249,10 @@ struct BSPLayout: Equatable, Sendable {
     /// the tree changed still returns beside its old neighbours.
     private(set) var vacancies: [BSPVacancy] = []
     static let vacancyLimit = 32
+    /// The tree before it was reflowed to fit. Minimums learned from an app
+    /// that applied a resize late are forgotten again, so the tree returns
+    /// once it fits, unless it changed since the reflow.
+    private(set) var reflowed: BSPReflow?
 
     var windows: [WindowToken] { root?.windows ?? [] }
 
@@ -367,14 +378,18 @@ struct BSPLayout: Equatable, Sendable {
         gaps: LayoutGaps,
         minimumSizes: [WindowToken: CGSize]
     ) -> Bool {
+        if let reflowed, reflowed.fitted != root { self.reflowed = nil }
         let order = windows
-        guard order.count > 1 else { return false }
-        let current = frames(in: bounds, gaps: gaps, minimumSizes: minimumSizes)
-        guard order.contains(where: { window in
-            guard let frame = current[window] else { return true }
-            let minimum = minimumSizes[window] ?? CGSize(width: 1, height: 1)
-            return frame.width + 4 < minimum.width || frame.height + 4 < minimum.height
-        }) else { return false }
+        guard order.count > 1, let root else { return false }
+        guard !Self.fits(root, in: bounds, gaps: gaps, minimumSizes: minimumSizes) else {
+            guard let reflowed, Self.fits(reflowed.original, in: bounds, gaps: gaps, minimumSizes: minimumSizes)
+            else { return false }
+            self.root = reflowed.original
+            self.reflowed = nil
+            return true
+        }
+        let original = reflowed?.original ?? root
+        defer { if let fitted = self.root, fitted != root { reflowed = BSPReflow(original: original, fitted: fitted) } }
 
         let gap = max(0, gaps.inner)
         let usable = bounds.insetBy(dx: max(0, gaps.outer), dy: max(0, gaps.outer))
@@ -400,10 +415,30 @@ struct BSPLayout: Equatable, Sendable {
             guard neededWidth <= usable.width + 4,
                   columns.map(\.height).max()! <= usable.height + 4
             else { continue }
-            root = Self.chain(columns.map(\.node), lengths: columns.map(\.width), axis: .horizontal, gap: gap)
+            self.root = Self.chain(columns.map(\.node), lengths: columns.map(\.width), axis: .horizontal, gap: gap)
             return true
         }
         return false
+    }
+
+    private static func fits(
+        _ node: BSPNode,
+        in bounds: CGRect,
+        gaps: LayoutGaps,
+        minimumSizes: [WindowToken: CGSize]
+    ) -> Bool {
+        var frames: [WindowToken: CGRect] = [:]
+        node.frames(
+            in: bounds.insetBy(dx: max(0, gaps.outer), dy: max(0, gaps.outer)),
+            innerGap: gaps.inner,
+            minimumSizes: minimumSizes,
+            into: &frames
+        )
+        return node.windows.allSatisfy { window in
+            guard let frame = frames[window] else { return false }
+            let minimum = minimumSizes[window] ?? CGSize(width: 1, height: 1)
+            return frame.width + 4 >= minimum.width && frame.height + 4 >= minimum.height
+        }
     }
 
     private static func chain(
