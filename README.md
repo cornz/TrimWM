@@ -14,8 +14,7 @@ brew install --cask cornz/tap/trimwm
 Each workspace uses one of three layouts and can switch at any time.
 
 **BSP autotiling** (`Option+Shift+E`): every new window splits the focused one,
-i3-style. A window that vanishes for a moment, or the first window of an app
-that relaunched within 30 seconds, returns to its old place instead.
+i3-style.
 
 ![TrimWM arranging three windows with BSP autotiling](Design/Screenshots/trimwm-bsp.png)
 

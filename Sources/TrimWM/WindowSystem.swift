@@ -471,6 +471,8 @@ final class AXWindowSnapshot: @unchecked Sendable {
     let isFocused: Bool
     let isOnScreen: Bool
     let isOnCurrentSpace: Bool
+    /// The app is hidden, so its windows are off screen until it is unhidden.
+    let isAppHidden: Bool
     let minimumSize: CGSize
     fileprivate let element: AXUIElement
 
@@ -483,6 +485,7 @@ final class AXWindowSnapshot: @unchecked Sendable {
         isFocused: Bool,
         isOnScreen: Bool,
         isOnCurrentSpace: Bool,
+        isAppHidden: Bool = false,
         minimumSize: CGSize,
         element: AXUIElement
     ) {
@@ -494,6 +497,7 @@ final class AXWindowSnapshot: @unchecked Sendable {
         self.isFocused = isFocused
         self.isOnScreen = isOnScreen
         self.isOnCurrentSpace = isOnCurrentSpace
+        self.isAppHidden = isAppHidden
         self.minimumSize = minimumSize
         self.element = element
     }
@@ -661,6 +665,7 @@ private final class AXContext: @unchecked Sendable {
             guard let elements = elementArray(application, kAXWindowsAttribute as String) else { return }
             let onScreen = Self.onScreenWindowIDs()
             let currentSpace = skyLight.currentMainSpaceID()
+            let appHidden = boolean(application, kAXHiddenAttribute as String) ?? false
             let focusedValue = copy(application, kAXFocusedWindowAttribute as String)
             let focusedID = focusedValue.flatMap {
                 CFGetTypeID($0) == AXUIElementGetTypeID()
@@ -693,6 +698,7 @@ private final class AXContext: @unchecked Sendable {
                     isFocused: id == focusedID,
                     isOnScreen: onScreen.contains(id),
                     isOnCurrentSpace: onCurrentSpace,
+                    isAppHidden: appHidden,
                     minimumSize: size(element, "AXMinSize") ?? CGSize(width: 1, height: 1),
                     element: element
                 ))
@@ -924,6 +930,8 @@ final class WindowSystem: NSObject {
         center.addObserver(self, selector: #selector(applicationActivated), name: NSWorkspace.didActivateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(applicationDeactivated), name: NSWorkspace.didDeactivateApplicationNotification, object: nil)
         center.addObserver(self, selector: #selector(activeSpaceChanged), name: NSWorkspace.activeSpaceDidChangeNotification, object: nil)
+        center.addObserver(self, selector: #selector(applicationHiddenChanged), name: NSWorkspace.didHideApplicationNotification, object: nil)
+        center.addObserver(self, selector: #selector(applicationHiddenChanged), name: NSWorkspace.didUnhideApplicationNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(screenParametersChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         observesWindowEvents = skyLight.startWindowEvents { [weak self] type, id in
             // SkyLight delivers on the main thread, from the AppKit event loop.
@@ -954,6 +962,14 @@ final class WindowSystem: NSObject {
     }
 
     func rescan() { contexts.values.forEach { $0.scan() } }
+
+    /// Unhides a hidden app, whose unhiding rescans it, or else rescans it.
+    func reveal(_ pid: pid_t) {
+        if let application = NSRunningApplication(processIdentifier: pid), application.isHidden, application.unhide() {
+            return
+        }
+        contexts[pid]?.scan()
+    }
 
     func frontmostFocusedWindow() -> WindowToken? {
         guard let pid = NSWorkspace.shared.frontmostApplication?.processIdentifier,
@@ -1043,6 +1059,11 @@ final class WindowSystem: NSObject {
     }
 
     @objc private func applicationDeactivated(_ notification: Notification) {
+        guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
+        contexts[application.processIdentifier]?.scan()
+    }
+
+    @objc private func applicationHiddenChanged(_ notification: Notification) {
         guard let application = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication else { return }
         contexts[application.processIdentifier]?.scan()
     }

@@ -66,6 +66,7 @@ protocol WindowSystemControlling: AnyObject {
     func start()
     func stop()
     func rescan()
+    func reveal(_ pid: pid_t)
     func frontmostFocusedWindow() -> WindowToken?
     func setFrame(
         _ frame: CGRect,
@@ -117,7 +118,6 @@ struct ControllerEnvironment {
     var terminate: () -> Void
     var watchConfig: (URL, @escaping @MainActor () -> Void) -> AnyObject? = { _, _ in nil }
     var after: (TimeInterval, @escaping @MainActor () -> Void) -> Void = { _, work in work() }
-    var now: () -> Date = Date.init
 
     static var live: ControllerEnvironment {
         ControllerEnvironment(
@@ -171,10 +171,6 @@ final class WMController {
     private var config: WMConfig
     private(set) var world = World()
     private var native: [WindowToken: AXWindowSnapshot] = [:]
-    /// Managed windows that vanished, so a relaunched app's new window can
-    /// take the place of its old one.
-    private var departed: [(token: WindowToken, bundleID: String, time: Date)] = []
-    static let departedLifetime: TimeInterval = 30
     private var frameConstraints = FrameConstraintCache()
     private var appMinimumSizes: AppMinimumSizes
     private var ledger = FrameLedger()
@@ -430,19 +426,20 @@ final class WMController {
     private func accept(pid: pid_t, windows: [AXWindowSnapshot]) {
         guard isEnabled else { return }
         let previous = native.keys.filter { $0.pid == pid }
-        let incoming = Set(windows.compactMap {
-            $0.isOnScreen || journal.entries[$0.token] != nil ? $0.token : nil
+        // A window hidden on another workspace keeps its place while its app
+        // is hidden or orders it out. On the visible workspace it would only
+        // leave an empty tile, unless its app is hidden and about to show it.
+        let incoming = Set(windows.compactMap { window -> WindowToken? in
+            if window.isOnScreen { return window.token }
+            guard journal.entries[window.token] != nil else { return nil }
+            let isVisible = world.workspace(of: window.token) == world.visibleWorkspace
+            return !isVisible || window.isAppHidden ? window.token : nil
         })
         let focusedBeforeRemoval = world.visible.focused
         let removedFocusedWindow = focusedBeforeRemoval.map {
             previous.contains($0) && !incoming.contains($0)
         } ?? false
-        let now = environment.now()
-        departed.removeAll { now.timeIntervalSince($0.time) > Self.departedLifetime }
         for token in previous where !incoming.contains(token) {
-            if let bundleID = native[token]?.bundleID, world.workspace(of: token) != nil {
-                departed.append((token, bundleID, now))
-            }
             native.removeValue(forKey: token)
             frameConstraints.remove(token)
             world.remove(token)
@@ -468,7 +465,7 @@ final class WMController {
                 let floating = window.disposition == .floating || rule?.floating == true
                 world.add(window.token, to: workspace, floating: floating ? window.frame : nil,
                           bounds: bounds, gaps: config.gaps, splitRatio: config.splitRatio,
-                          minimumSizes: minimumSizes, restoring: restoreCandidates(for: window))
+                          minimumSizes: minimumSizes)
             }
             acceptFloatingFrame(window)
             ledger.observed(window.frame, for: window.token)
@@ -494,13 +491,6 @@ final class WMController {
         if removedFocusedWindow, let replacement = world.visible.focused {
             windowSystem.focus(replacement)
         }
-    }
-
-    /// The window itself, then the oldest vanished window of its app.
-    private func restoreCandidates(for window: AXWindowSnapshot) -> [WindowToken] {
-        departed.removeAll { $0.token == window.token }
-        guard let index = departed.firstIndex(where: { $0.bundleID == window.bundleID }) else { return [window.token] }
-        return [window.token, departed.remove(at: index).token]
     }
 
     private func acceptFloatingFrame(_ window: AXWindowSnapshot) {
@@ -643,6 +633,7 @@ final class WMController {
         case let .workspace(index):
             world.switchWorkspace(to: index)
             applyLayout()
+            revealVisibleWorkspace()
             if let window = mouse.targetAfterLayoutChange() {
                 focusFromMouse(window)
             }
@@ -660,6 +651,7 @@ final class WMController {
                     minimumSizes: minimumSizes
                 )
                 applyLayout()
+                if follow { revealVisibleWorkspace() }
             }
         case let .layout(mode):
             world.changeVisibleLayout(
@@ -724,6 +716,14 @@ final class WMController {
             catch { lastError = String(describing: error); publish() }
         case .reload, .nop: break
         }
+    }
+
+    /// Windows of the visible workspace that went off screen while it was
+    /// hidden: their app was hidden, or it ordered them out. Unhide the app,
+    /// or rescan it so they stop holding an empty tile.
+    private func revealVisibleWorkspace() {
+        let pids = Set(world.visible.windows.compactMap { native[$0] }.filter { !$0.isOnScreen }.map(\.token.pid))
+        for pid in pids.sorted() { windowSystem.reveal(pid) }
     }
 
     private func focusCurrent() {

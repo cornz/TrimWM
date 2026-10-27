@@ -5,6 +5,23 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.6] — 27 October 2026
+
+Changes
+
+- Split the focused window again for every BSP window that appears, also one
+  that vanished for a moment or whose app relaunched, instead of returning it
+  to its old place as 0.9.3 did. A new window of an app whose window just
+  closed, as Warp's, took that window's place instead of splitting the
+  focused one.
+
+Bug fixes
+
+- Leave no empty tile on a workspace for a window that went off screen while
+  the workspace was hidden. When its app was hidden, switching to the
+  workspace unhides the app; when the app ordered the window out, the window
+  leaves the layout.
+
 ## [0.9.5] — 22 October 2026
 
 Bug fixes

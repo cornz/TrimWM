@@ -216,42 +216,6 @@ final class ControllerTests: XCTestCase {
         XCTAssertEqual(harness.mouse.updates.last?.frames[codex]?.width, bounds.width)
     }
 
-    func testRelaunchedAppWindowReturnsToThePlaceOfItsOldWindow() {
-        let harness = makeHarness()
-        let slack = WindowToken(pid: 40, id: 1)
-        let relaunched = WindowToken(pid: 50, id: 7)
-        let messages = WindowToken(pid: 41, id: 2)
-        harness.environment.frontmostPID = messages.pid
-        harness.controller.start()
-        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, bundleID: "com.example.slack")])])
-        harness.controller.handle([.windows(messages.pid, [snapshot(messages, x: 500, focused: true)])])
-
-        harness.controller.handle([.windows(slack.pid, [])])
-        harness.environment.now += WMController.departedLifetime
-        harness.controller.handle([.windows(relaunched.pid, [snapshot(relaunched, x: 0, bundleID: "com.example.slack")])])
-
-        XCTAssertEqual(harness.mouse.updates.last?.frames[relaunched]?.minX, 0)
-        XCTAssertEqual(harness.mouse.updates.last?.frames[messages]?.minX, 500)
-    }
-
-    func testWindowOfAnAppThatLeftLongAgoSplitsFocusedWindow() {
-        let harness = makeHarness()
-        let slack = WindowToken(pid: 40, id: 1)
-        let relaunched = WindowToken(pid: 50, id: 7)
-        let messages = WindowToken(pid: 41, id: 2)
-        harness.environment.frontmostPID = messages.pid
-        harness.controller.start()
-        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, bundleID: "com.example.slack")])])
-        harness.controller.handle([.windows(messages.pid, [snapshot(messages, x: 500, focused: true)])])
-
-        harness.controller.handle([.windows(slack.pid, [])])
-        harness.environment.now += WMController.departedLifetime + 1
-        harness.controller.handle([.windows(relaunched.pid, [snapshot(relaunched, x: 0, bundleID: "com.example.slack")])])
-
-        XCTAssertEqual(harness.mouse.updates.last?.frames[messages]?.minX, 0)
-        XCTAssertEqual(harness.mouse.updates.last?.frames[relaunched]?.minX, 500)
-    }
-
     func testFloatingWindowKeepsManualMovesAndResizesAndUpdatesFocusBorder() {
         let harness = makeHarness()
         let token = WindowToken(pid: 40, id: 1)
@@ -475,6 +439,48 @@ final class ControllerTests: XCTestCase {
 
         harness.controller.handle([.windows(50, [snapshot(first, x: 0, focused: true)])])
         XCTAssertNil(harness.controller.world.workspace(of: second))
+    }
+
+    func testWindowOrderedOutOnHiddenWorkspaceLeavesNoEmptyTileOnceShown() {
+        let harness = makeHarness()
+        let slack = WindowToken(pid: 40, id: 1)
+        let discord = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = slack.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, focused: true)])])
+        harness.controller.handle([.windows(discord.pid, [snapshot(discord, x: 500)])])
+        harness.controller.execute(.workspace(2))
+
+        harness.controller.handle([.windows(discord.pid, [snapshot(discord, x: -399, isOnScreen: false)])])
+        XCTAssertEqual(harness.controller.world.workspace(of: discord), 1)
+
+        harness.controller.execute(.workspace(1))
+        XCTAssertEqual(harness.windowSystem.revealed, [discord.pid])
+        harness.controller.handle([.windows(discord.pid, [snapshot(discord, x: 500, isOnScreen: false)])])
+
+        XCTAssertNil(harness.controller.world.workspace(of: discord))
+        XCTAssertEqual(harness.mouse.updates.last?.frames[slack]?.width, bounds.width)
+    }
+
+    func testWindowOfAppHiddenOnHiddenWorkspaceKeepsItsTileUntilUnhidden() {
+        let harness = makeHarness()
+        let slack = WindowToken(pid: 40, id: 1)
+        let messages = WindowToken(pid: 41, id: 2)
+        harness.environment.frontmostPID = messages.pid
+        harness.controller.start()
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0)])])
+        harness.controller.handle([.windows(messages.pid, [snapshot(messages, x: 500, focused: true)])])
+        harness.controller.execute(.workspace(2))
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: -399, isOnScreen: false, isAppHidden: true)])])
+
+        harness.controller.execute(.workspace(1))
+        XCTAssertEqual(harness.windowSystem.revealed, [slack.pid])
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0, isOnScreen: false, isAppHidden: true)])])
+        XCTAssertEqual(harness.controller.world.workspace(of: slack), 1)
+
+        harness.controller.handle([.windows(slack.pid, [snapshot(slack, x: 0)])])
+        XCTAssertEqual(harness.mouse.updates.last?.frames[slack]?.minX, 0)
+        XCTAssertEqual(harness.mouse.updates.last?.frames[messages]?.minX, 500)
     }
 
     func testColumnDragFeedbackUsesWholeNiriTargetColumnAndClears() {
@@ -866,6 +872,7 @@ final class ControllerTests: XCTestCase {
         title: String? = nil,
         focused: Bool = false,
         isOnScreen: Bool = true,
+        isAppHidden: Bool = false,
         disposition: WindowDisposition = .tiled,
         bundleID: String = "com.example.app"
     ) -> AXWindowSnapshot {
@@ -878,6 +885,7 @@ final class ControllerTests: XCTestCase {
             isFocused: focused,
             isOnScreen: isOnScreen,
             isOnCurrentSpace: true,
+            isAppHidden: isAppHidden,
             minimumSize: CGSize(width: 100, height: 80),
             element: AXUIElementCreateApplication(token.pid)
         )
@@ -918,6 +926,8 @@ private final class FakeWindowSystem: WindowSystemControlling {
     func start() { startCount += 1 }
     func stop() { stopCount += 1 }
     func rescan() { rescanCount += 1 }
+    var revealed: [pid_t] = []
+    func reveal(_ pid: pid_t) { revealed.append(pid) }
     func frontmostFocusedWindow() -> WindowToken? { liveFocused }
 
     func setFrame(
@@ -1014,7 +1024,6 @@ private final class TestControllerEnvironment {
     var shellError: Error?
     var configChanged: (@MainActor () -> Void)?
     var delays: [TimeInterval] = []
-    var now = Date(timeIntervalSinceReferenceDate: 0)
     private var delayed: [@MainActor () -> Void] = []
     let bounds: CGRect
 
@@ -1044,8 +1053,7 @@ private final class TestControllerEnvironment {
             after: { delay, work in
                 self.delays.append(delay)
                 self.delayed.append(work)
-            },
-            now: { self.now }
+            }
         )
     }
 
