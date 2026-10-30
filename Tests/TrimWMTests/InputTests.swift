@@ -3,6 +3,19 @@ import XCTest
 @testable import TrimWM
 
 final class InputTests: XCTestCase {
+    func testReadsSecureInputOwnerFromConsoleUsers() {
+        XCTAssertNil(SecureInputState.ownerPID(consoleUsers: []))
+        XCTAssertNil(SecureInputState.ownerPID(consoleUsers: [["kCGSSessionUserNameKey": "cornz"]]))
+        XCTAssertNil(SecureInputState.ownerPID(consoleUsers: [["kCGSSessionSecureInputPID": NSNumber(value: 0)]]))
+        XCTAssertEqual(
+            SecureInputState.ownerPID(consoleUsers: [
+                ["kCGSSessionUserNameKey": "other"],
+                ["kCGSSessionUserNameKey": "cornz", "kCGSSessionSecureInputPID": NSNumber(value: 4321)],
+            ]),
+            4321
+        )
+    }
+
     func testPlansUserChords() throws {
         let plan = try HotKeyPlanner.plan(Binding(chord: "alt+Shift+;", command: .focus(.right)))
         XCTAssertEqual(plan.keyCode, UInt32(kVK_ANSI_Semicolon))

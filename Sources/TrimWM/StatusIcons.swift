@@ -23,9 +23,12 @@ enum StatusIcons {
     private static let itemSpacing: CGFloat = 2
     private static var font: NSFont { .monospacedDigitSystemFont(ofSize: 11, weight: .semibold) }
 
-    static func image(for workspaces: [StatusWorkspace]) -> NSImage {
+    /// A lock follows the workspaces while Secure Input blocks the hotkeys.
+    static func image(for workspaces: [StatusWorkspace], secureInput: Bool = false) -> NSImage {
         let widths = workspaces.map(itemWidth)
-        let width = widths.reduce(0, +) + itemSpacing * CGFloat(max(0, workspaces.count - 1))
+        var width = widths.reduce(0, +) + itemSpacing * CGFloat(max(0, workspaces.count - 1))
+        let lock = secureInput ? lockImage : nil
+        if let lock { width += padding + lock.size.width }
         let image = NSImage(size: CGSize(width: max(1, ceil(width)), height: height), flipped: true) { _ in
             guard let context = NSGraphicsContext.current?.cgContext else { return false }
             var x: CGFloat = 0
@@ -33,11 +36,28 @@ enum StatusIcons {
                 draw(workspace, in: CGRect(x: x, y: 0, width: itemWidth, height: height), context: context)
                 x += itemWidth + itemSpacing
             }
+            if let lock {
+                let origin = CGPoint(x: ceil(width) - lock.size.width, y: (height - lock.size.height) / 2)
+                lock.draw(
+                    in: CGRect(origin: origin, size: lock.size),
+                    from: .zero,
+                    operation: .sourceOver,
+                    fraction: 1,
+                    respectFlipped: true,
+                    hints: nil
+                )
+            }
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = workspaces.map(description).joined(separator: ", ")
+        let descriptions = workspaces.map(description) + (lock == nil ? [] : ["hotkeys blocked by Secure Input"])
+        image.accessibilityDescription = descriptions.joined(separator: ", ")
         return image
+    }
+
+    private static var lockImage: NSImage? {
+        NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)?
+            .withSymbolConfiguration(.init(pointSize: 11, weight: .semibold))
     }
 
     /// One glyph alone, as a template image.

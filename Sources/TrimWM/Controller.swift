@@ -82,8 +82,10 @@ extension WindowSystem: WindowSystemControlling {}
 
 protocol HotKeyControlling: AnyObject {
     var onCommand: (@Sendable (WMCommand) -> Void)? { get set }
+    var unavailableChords: [String] { get }
     func register(_ bindings: [Binding]) throws
     func unregister()
+    func retryUnavailable()
 }
 
 extension HotKeyManager: HotKeyControlling {}
@@ -178,6 +180,8 @@ final class WMController {
     private var mode = "default"
     private var systemStarted = false
     private var lastError: String?
+    private var hotKeyWarning: String?
+    private var hotKeyRetryScheduled = false
     private var published: (status: String, error: String?)?
     private var publishedWorkspaces: [StatusWorkspace]?
     private var publishedTabBar: TabBarModel?
@@ -273,6 +277,7 @@ final class WMController {
         frameConstraints.reset()
         ledger.reset()
         isEnabled = true
+        checkUnavailableHotKeys()
         if lastError?.hasPrefix("Accessibility") == true { lastError = nil }
         if !systemStarted { windowSystem.start(); systemStarted = true }
         else { windowSystem.rescan() }
@@ -286,6 +291,7 @@ final class WMController {
         guard isEnabled || !journal.entries.isEmpty else { return }
         isEnabled = false
         hotKeys.unregister()
+        checkUnavailableHotKeys()
         mouse.stop()
         onFocusBorder?(nil)
         publishTabBar(bounds: environment.mainScreenBounds())
@@ -324,6 +330,7 @@ final class WMController {
             onBorderStyle?(config.border)
             mode = "default"
             lastError = nil
+            checkUnavailableHotKeys()
             if isEnabled, !mouse.start(focusesOnMove: config.focusFollowsMouse) {
                 lastError = "Could not create the mouse event tap."
             }
@@ -333,6 +340,25 @@ final class WMController {
             lastError = String(describing: error)
         }
         publish()
+    }
+
+    static let hotKeyRetryDelay: TimeInterval = 2
+
+    /// Names the side-specific chords macOS left without an event tap and
+    /// retries the tap until access is granted, without a relaunch.
+    private func checkUnavailableHotKeys() {
+        let chords = isEnabled ? hotKeys.unavailableChords : []
+        hotKeyWarning = chords.isEmpty ? nil : "Unavailable without Input Monitoring: \(chords.joined(separator: ", "))"
+        guard !chords.isEmpty, !hotKeyRetryScheduled else { return }
+        hotKeyRetryScheduled = true
+        environment.after(Self.hotKeyRetryDelay) { [weak self] in
+            guard let self else { return }
+            hotKeyRetryScheduled = false
+            guard isEnabled else { return }
+            hotKeys.retryUnavailable()
+            checkUnavailableHotKeys()
+            publish()
+        }
     }
 
     func openAccessibilitySettings() {
@@ -708,7 +734,7 @@ final class WMController {
             }
         case let .mode(name):
             guard let bindings = config.bindings[name] else { return }
-            do { try hotKeys.register(bindings); mode = name; lastError = nil }
+            do { try hotKeys.register(bindings); mode = name; lastError = nil; checkUnavailableHotKeys() }
             catch { lastError = String(describing: error) }
             publish()
         case let .execute(shellCommand):
@@ -882,7 +908,7 @@ final class WMController {
             publishedWorkspaces = workspaces
             onWorkspaces?(workspaces)
         }
-        let next = (isEnabled ? world.statusText : "Paused", lastError)
+        let next = (isEnabled ? world.statusText : "Paused", lastError ?? hotKeyWarning)
         guard published?.status != next.0 || published?.error != next.1 else { return }
         published = next
         if let error = next.1 { logger.error("\(next.0, privacy: .public): \(error, privacy: .public)") }

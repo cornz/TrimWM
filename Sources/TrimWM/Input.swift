@@ -1,9 +1,10 @@
 @preconcurrency import Carbon
 import CoreGraphics
 import Foundation
+import IOKit
 
 enum HotKeyError: Error, Equatable {
-    case invalidChord(String), unsupportedKey(String), carbon(OSStatus), eventTap
+    case invalidChord(String), unsupportedKey(String), carbon(OSStatus)
 }
 
 enum ModifierFamily: Hashable, Sendable { case option, shift, control, command }
@@ -36,6 +37,7 @@ enum SidedModifier: Hashable, Sendable {
 }
 
 struct HotKeyPlan: Equatable, Sendable {
+    let chord: String
     let keyCode: UInt32
     let modifiers: UInt32
     let sidedModifiers: Set<SidedModifier>
@@ -84,6 +86,7 @@ enum HotKeyPlanner {
         }
         guard let code = keyCodes[String(key)] else { throw HotKeyError.unsupportedKey(String(key)) }
         return HotKeyPlan(
+            chord: binding.chord,
             keyCode: code,
             modifiers: modifiers,
             sidedModifiers: sidedModifiers,
@@ -159,6 +162,34 @@ enum SidedHotKeyMatcher {
     }
 }
 
+/// Secure Event Input, which password fields turn on, withholds keystrokes
+/// from event taps and from hotkeys such as Option chords that could capture
+/// password characters. A browser can keep it on after its field lost focus.
+enum SecureInputState: Equatable, Sendable {
+    case off
+    case on(pid: pid_t?)
+
+    static var current: SecureInputState {
+        guard IsSecureEventInputEnabled() else { return .off }
+        return .on(pid: ownerPID(consoleUsers: consoleUsers()))
+    }
+
+    /// The session's console user entry names the process holding it.
+    static func ownerPID(consoleUsers: [[String: Any]]) -> pid_t? {
+        consoleUsers.lazy
+            .compactMap { ($0["kCGSSessionSecureInputPID"] as? NSNumber)?.int32Value }
+            .first { $0 > 0 }
+    }
+
+    private static func consoleUsers() -> [[String: Any]] {
+        let root = IORegistryEntryFromPath(kIOMainPortDefault, "IOService:/")
+        guard root != MACH_PORT_NULL else { return [] }
+        defer { IOObjectRelease(root) }
+        let users = IORegistryEntryCreateCFProperty(root, "IOConsoleUsers" as CFString, kCFAllocatorDefault, 0)
+        return users?.takeRetainedValue() as? [[String: Any]] ?? []
+    }
+}
+
 private func TrimWMHotKeyHandler(_: EventHandlerCallRef?, event: EventRef?, userData: UnsafeMutableRawPointer?) -> OSStatus {
     guard let event, let userData else { return OSStatus(eventNotHandledErr) }
     var id = EventHotKeyID()
@@ -231,6 +262,17 @@ final class HotKeyManager: @unchecked Sendable {
         plans.removeAll()
     }
 
+    /// Side-specific chords left out because macOS refused their event tap,
+    /// usually for missing Input Monitoring access. The other hotkeys stay.
+    var unavailableChords: [String] {
+        sidedTap == nil ? sidedPlans.map(\.chord) : []
+    }
+
+    /// Asks for the refused event tap again, as once access was granted.
+    func retryUnavailable() {
+        if !sidedPlans.isEmpty { _ = startSidedTap() }
+    }
+
     private func install(_ plans: [HotKeyPlan]) throws -> ([EventHotKeyRef], [UInt32: WMCommand]) {
         var newReferences: [EventHotKeyRef] = []
         var newCommands: [UInt32: WMCommand] = [:]
@@ -246,14 +288,8 @@ final class HotKeyManager: @unchecked Sendable {
             newReferences.append(reference)
             newCommands[id] = plan.command
         }
-        let requestedSidedPlans = plans.filter { !$0.sidedModifiers.isEmpty }
-        if !requestedSidedPlans.isEmpty {
-            guard startSidedTap() else {
-                newReferences.forEach { UnregisterEventHotKey($0) }
-                throw HotKeyError.eventTap
-            }
-        }
-        sidedPlans = requestedSidedPlans
+        sidedPlans = plans.filter { !$0.sidedModifiers.isEmpty }
+        if !sidedPlans.isEmpty { _ = startSidedTap() }
         return (newReferences, newCommands)
     }
 

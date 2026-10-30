@@ -5,6 +5,23 @@ sections follow the concise release-note style used by AeroSpace.
 
 ## [Unreleased]
 
+## [0.9.7] — 30 October 2026
+
+Changes
+
+- Show a lock in the menu bar, and name the app in the menu, while another app
+  holds Secure Input. macOS then withholds the hotkeys from TrimWM, so an Option
+  chord typed its character instead; a browser can keep Secure Input on after
+  its password field lost focus.
+
+Bug fixes
+
+- Keep every other hotkey working when macOS refuses the event tap that
+  side-specific chords such as `right-cmd+c` need, usually for missing Input
+  Monitoring access, instead of staying paused or rejecting the
+  configuration. The menu names the unavailable chords; they work once
+  access is granted, without a relaunch.
+
 ## [0.9.6] — 27 October 2026
 
 Changes

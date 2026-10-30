@@ -33,6 +33,14 @@ final class ControllerTests: XCTestCase {
             "TrimWM 0.3.1 · Configuration failed"
         )
         XCTAssertEqual(
+            AppMetadata.secureInputWarning(owner: "Microsoft Edge"),
+            "Hotkeys blocked: Microsoft Edge holds Secure Input"
+        )
+        XCTAssertEqual(
+            AppMetadata.secureInputWarning(owner: nil),
+            "Hotkeys blocked: another app holds Secure Input"
+        )
+        XCTAssertEqual(
             AppMetadata.changelogURL.absoluteString,
             "https://github.com/cornz/TrimWM/blob/main/CHANGELOG.md"
         )
@@ -138,6 +146,38 @@ final class ControllerTests: XCTestCase {
 
         XCTAssertTrue(mouseFailure.controller.isEnabled)
         XCTAssertTrue(mouseStatus?.1?.contains("mouse event tap") == true)
+    }
+
+    func testRefusedEventTapKeepsTheManagerEnabledAndRetries() {
+        let harness = makeHarness()
+        harness.hotKeys.unavailableChords = ["right-cmd+c"]
+        var status: (String, String?)?
+        harness.controller.onStatus = { status = ($0, $1) }
+
+        harness.controller.enable()
+
+        XCTAssertTrue(harness.controller.isEnabled)
+        XCTAssertEqual(status?.1, "Unavailable without Input Monitoring: right-cmd+c")
+        XCTAssertEqual(harness.environment.delays, [WMController.hotKeyRetryDelay])
+
+        harness.environment.runDelayed()
+
+        XCTAssertEqual(harness.hotKeys.retryCount, 1)
+        XCTAssertEqual(harness.environment.delays.count, 2)
+
+        harness.hotKeys.unavailableChords = []
+        harness.environment.runDelayed()
+
+        XCTAssertEqual(harness.hotKeys.retryCount, 2)
+        XCTAssertNil(status?.1)
+        XCTAssertEqual(harness.environment.delays.count, 2)
+
+        harness.hotKeys.unavailableChords = ["right-cmd+c"]
+        harness.controller.disable()
+        harness.environment.runDelayed()
+
+        XCTAssertEqual(harness.hotKeys.retryCount, 2)
+        XCTAssertEqual(harness.environment.delays.count, 2)
     }
 
     func testWindowInventoryAndCommandsRouteThroughController() {
@@ -964,6 +1004,8 @@ private final class FakeHotKeys: HotKeyControlling {
     var error: Error?
     var registered: [[Binding]] = []
     var unregisterCount = 0
+    var unavailableChords: [String] = []
+    var retryCount = 0
 
     func register(_ bindings: [Binding]) throws {
         if let error { throw error }
@@ -971,6 +1013,8 @@ private final class FakeHotKeys: HotKeyControlling {
     }
 
     func unregister() { unregisterCount += 1 }
+
+    func retryUnavailable() { retryCount += 1 }
 }
 
 private final class FakeMouse: MouseControlling {

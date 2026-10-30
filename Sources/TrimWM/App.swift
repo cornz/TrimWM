@@ -252,6 +252,11 @@ enum AppMetadata {
         return "TrimWM \(version) · \(detail)"
     }
 
+    /// Names the app holding Secure Input, so it can be left or quit.
+    static func secureInputWarning(owner: String?) -> String {
+        "Hotkeys blocked: \(owner ?? "another app") holds Secure Input"
+    }
+
     static let changelogURL = URL(string: "https://github.com/cornz/TrimWM/blob/main/CHANGELOG.md")!
 }
 
@@ -273,6 +278,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let focusBorder = WindowBorder()
     private let tabBar = TabBar()
     private var statusText = ""
+    private var errorText: String?
+    private var secureInput = SecureInputState.off
+    private var secureInputTimer: Timer?
     private var workspaces: [StatusWorkspace] = []
     private let dragTargetBorder = FocusBorder(widthScale: 2, minimumWidth: 4, fillOpacity: 0.1)
     private var dragCursorPushed = false
@@ -300,6 +308,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self.controller = controller
         updateMenu(status: "Starting", error: nil)
         controller.start()
+        // macOS reports no change to Secure Input, so it is polled.
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            MainActor.assumeIsolated { self?.checkSecureInput() }
+        }
+        timer.tolerance = 1
+        RunLoop.main.add(timer, forMode: .common)
+        secureInputTimer = timer
+    }
+
+    private func checkSecureInput() {
+        let next = controller?.isEnabled == true ? SecureInputState.current : .off
+        guard next != secureInput else { return }
+        secureInput = next
+        updateMenu(status: statusText, error: errorText)
+    }
+
+    private var secureInputWarning: String? {
+        guard case let .on(pid) = secureInput else { return nil }
+        let owner = pid.flatMap { NSRunningApplication(processIdentifier: $0)?.localizedName }
+        return AppMetadata.secureInputWarning(owner: owner)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -310,8 +338,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateMenu(status: String, error: String?) {
         let version = AppMetadata.version()
         statusText = status
-        updateStatusButton()
-        statusItem?.button?.toolTip = "TrimWM \(version)"
+        errorText = error
+        let warning = secureInputWarning
+        updateStatusButton(secureInput: warning != nil)
+        statusItem?.button?.toolTip = warning.map { "TrimWM \(version) · \($0)" } ?? "TrimWM \(version)"
         let menu = NSMenu()
         let state = NSMenuItem(
             title: AppMetadata.menuTitle(status: workspaces.isEmpty ? status : nil, error: error, version: version),
@@ -320,6 +350,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         state.isEnabled = false
         menu.addItem(state)
+        if let warning {
+            let item = NSMenuItem(title: warning, action: nil, keyEquivalent: "")
+            item.image = NSImage(systemSymbolName: "lock.fill", accessibilityDescription: nil)
+            item.isEnabled = false
+            menu.addItem(item)
+        }
         menu.addItem(.separator())
         let toggle = MenuToggleAction(isEnabled: controller?.isEnabled == true)
         let toggleSelector = switch toggle {
@@ -341,13 +377,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Workspaces show as numbers with layout glyphs; a paused or starting
     /// manager shows its status as text.
-    private func updateStatusButton() {
+    private func updateStatusButton(secureInput: Bool? = nil) {
         guard let button = statusItem?.button else { return }
         if workspaces.isEmpty {
             button.image = nil
             button.title = statusText
         } else {
-            button.image = StatusIcons.image(for: workspaces)
+            let secureInput = secureInput ?? (secureInputWarning != nil)
+            button.image = StatusIcons.image(for: workspaces, secureInput: secureInput)
             button.imagePosition = .imageOnly
             button.title = ""
         }
